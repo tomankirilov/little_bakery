@@ -28,6 +28,20 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
     low_polys: bpy.props.CollectionProperty(type=DummyBakeLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=0)
+    show_set_settings: bpy.props.BoolProperty(name="Show Set Settings", default=True)
+    size: bpy.props.IntVectorProperty(
+        name="Size",
+        size=2,
+        default=(1024, 1024),
+        min=1,
+        subtype="NONE",
+    )
+    bake_normals_ws: bpy.props.BoolProperty(name="Normals WS", default=False)
+    bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
+    bake_curvature: bpy.props.BoolProperty(name="Curvature", default=False)
+    bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
+    bake_position: bpy.props.BoolProperty(name="Position", default=False)
+    bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
 
 
 class DummyBakeData(bpy.types.PropertyGroup):
@@ -36,6 +50,20 @@ class DummyBakeData(bpy.types.PropertyGroup):
     show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=True)
     show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=True)
     show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=True)
+    show_global_options: bpy.props.BoolProperty(name="Show Global Options", default=True)
+    render_device: bpy.props.EnumProperty(
+        name="Render Device",
+        items=[
+            ("CPU", "CPU", ""),
+            ("GPU", "GPU", ""),
+        ],
+        default="GPU",
+    )
+    render_samples: bpy.props.IntProperty(
+        name="Render Samples",
+        default=1024,
+        min=1,
+    )
 
 
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
@@ -245,6 +273,21 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         layout = self.layout
         data = context.scene.dummy_bake_data
 
+        global_box = layout.box()
+        header = global_box.row(align=True)
+        header.prop(
+            data,
+            "show_global_options",
+            icon="TRIA_DOWN" if data.show_global_options else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Global Options")
+        if data.show_global_options:
+            col = global_box.column(align=True)
+            col.prop(data, "render_device", text="Render Device")
+            col.prop(data, "render_samples", text="Render Samples")
+
         box = layout.box()
         header = box.row(align=True)
         header.prop(
@@ -271,6 +314,27 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         if data.texture_sets:
             tex_set = data.texture_sets[data.active_texture_index]
+            set_box = layout.box()
+            header = set_box.row(align=True)
+            header.prop(
+                tex_set,
+                "show_set_settings",
+                icon="TRIA_DOWN" if tex_set.show_set_settings else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Set Settings")
+            if tex_set.show_set_settings:
+                col = set_box.column(align=True)
+                col.prop(tex_set, "size")
+                col.separator()
+                col.prop(tex_set, "bake_normals_ws")
+                col.prop(tex_set, "bake_ambient_occlusion")
+                col.prop(tex_set, "bake_curvature")
+                col.prop(tex_set, "bake_thickness")
+                col.prop(tex_set, "bake_position")
+                col.prop(tex_set, "bake_random_island")
+
             low_box = layout.box()
             header = low_box.row(align=True)
             header.prop(
