@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+
+id = "dummy_bake_tools"
+version = "0.1.0"
+name = "Dummy Bake Tools"
+tagline = "Skeleton addon with a Sidebar panel"
+maintainer = "Toman"
+# Supported types: "add-on", "theme"
+type = "add-on"
+
+blender_version_min = "5.0.0"
+
+license = [
+  "SPDX:GPL-2.0-or-later",
+]
