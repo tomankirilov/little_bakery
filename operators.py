@@ -220,6 +220,26 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
         return {"CANCELLED"}
 
 
+class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
+    bl_idname = "dummybake.bake_all"
+    bl_label = "Bake All"
+    bl_description = "Bake all texture sets"
+
+    def execute(self, context):
+        self.report({"INFO"}, "Bake All not implemented yet")
+        return {"FINISHED"}
+
+
+class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
+    bl_idname = "dummybake.bake_selected_set"
+    bl_label = "Bake Selected Set"
+    bl_description = "Bake the active texture set"
+
+    def execute(self, context):
+        self.report({"INFO"}, "Bake Selected Set not implemented yet")
+        return {"FINISHED"}
+
+
 classes = (
     DUMMYBAKE_OT_texture_set_add,
     DUMMYBAKE_OT_texture_set_remove,
@@ -229,6 +249,8 @@ classes = (
     DUMMYBAKE_OT_high_poly_remove,
     DUMMYBAKE_OT_select_object,
     DUMMYBAKE_OT_clear_selection,
+    DUMMYBAKE_OT_bake_all,
+    DUMMYBAKE_OT_bake_selected_set,
 )
 
 

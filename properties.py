@@ -26,7 +26,7 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
     low_polys: bpy.props.CollectionProperty(type=DummyBakeLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
-    show_set_settings: bpy.props.BoolProperty(name="Show Set Settings", default=True)
+    show_set_settings: bpy.props.BoolProperty(name="Show Set Settings", default=False)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
     size: bpy.props.IntVectorProperty(
         name="Size",
@@ -37,8 +37,14 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     )
     bake_normals_ws: bpy.props.BoolProperty(name="Normals WS", default=False)
     bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
+    ao_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
+    ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     bake_curvature: bpy.props.BoolProperty(name="Curvature", default=False)
+    curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
+    thickness_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     bake_position: bpy.props.BoolProperty(name="Position", default=False)
     bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
 
@@ -46,10 +52,10 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
 class DummyBakeData(bpy.types.PropertyGroup):
     texture_sets: bpy.props.CollectionProperty(type=DummyBakeTextureSet)
     active_texture_index: bpy.props.IntProperty(default=-1)
-    show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=True)
-    show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=True)
-    show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=True)
-    show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=True)
+    show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=False)
+    show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=False)
+    show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=False)
+    show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     render_device: bpy.props.EnumProperty(
         name="Render Device",
         items=[
@@ -63,9 +69,13 @@ class DummyBakeData(bpy.types.PropertyGroup):
         default=1024,
         min=1,
     )
-    output_dir: bpy.props.StringProperty(name="Output", subtype="DIR_PATH")
-    global_size: bpy.props.IntVectorProperty(
-        name="Size",
+    output_dir: bpy.props.StringProperty(
+        name="Output",
+        subtype="DIR_PATH",
+        default="//",
+    )
+    global_resolution: bpy.props.IntVectorProperty(
+        name="Resolution",
         size=2,
         default=(1024, 1024),
         min=1,
@@ -73,11 +83,17 @@ class DummyBakeData(bpy.types.PropertyGroup):
     )
     global_bake_normals_ws: bpy.props.BoolProperty(name="Normals WS", default=False)
     global_bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
+    global_ao_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    global_ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
+    global_ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     global_bake_curvature: bpy.props.BoolProperty(name="Curvature", default=False)
+    global_curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     global_bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
+    global_thickness_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    global_thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     global_bake_position: bpy.props.BoolProperty(name="Position", default=False)
     global_bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
-    global_extrusion: bpy.props.FloatProperty(name="Extrusion", default=0.0, min=0.0)
+    global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.0, min=0.0)
     global_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",
         default=0.0,

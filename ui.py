@@ -41,6 +41,13 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         layout = self.layout
         data = context.scene.dummy_bake_data
 
+        bake_box = layout.box()
+        bake_box.label(text="Bake")
+        col = bake_box.column(align=True)
+        col.operator("dummybake.bake_all", text="Bake All")
+        col.operator("dummybake.bake_selected_set", text="Bake Selected Set")
+        col.prop(data, "output_dir", text="Output")
+
         global_box = layout.box()
         header = global_box.row(align=True)
         header.prop(
@@ -53,20 +60,43 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         header.label(text="Global Settings")
         if data.show_global_settings:
             col = global_box.column(align=True)
+            col.label(text="General")
             row = col.split(factor=0.6, align=True)
             row.label(text="Render Device")
             row.prop(data, "render_device", text="")
             col.prop(data, "render_samples", text="Render Samples")
-            col.prop(data, "output_dir", text="Output")
-            col.prop(data, "global_size", text="Size")
+            general_col = col.column(align=True)
+            general_col.prop(data, "global_extrusion")
+            general_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+            col.separator()
+            col.label(text="Bake Targets")
+            row = col.split(factor=0.6, align=True)
+            row.label(text="Resolution")
+            row.prop(data, "global_resolution", text="")
             col.prop(data, "global_bake_normals_ws")
             col.prop(data, "global_bake_ambient_occlusion")
+            if data.global_bake_ambient_occlusion:
+                row = col.row()
+                row.separator()
+                ao_col = row.column(align=True)
+                ao_col.prop(data, "global_ao_local_only")
+                ao_col.prop(data, "global_ao_samples")
+                ao_col.prop(data, "global_ao_distance")
             col.prop(data, "global_bake_curvature")
+            if data.global_bake_curvature:
+                row = col.row()
+                row.separator()
+                curv_col = row.column(align=True)
+                curv_col.prop(data, "global_curvature_exponent")
             col.prop(data, "global_bake_thickness")
+            if data.global_bake_thickness:
+                row = col.row()
+                row.separator()
+                thick_col = row.column(align=True)
+                thick_col.prop(data, "global_thickness_samples")
+                thick_col.prop(data, "global_thickness_distance")
             col.prop(data, "global_bake_position")
             col.prop(data, "global_bake_random_island")
-            col.prop(data, "global_extrusion", text="Extrusion")
-            col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
 
         box = layout.box()
         header = box.row(align=True)
@@ -113,8 +143,26 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     col.prop(tex_set, "size")
                     col.prop(tex_set, "bake_normals_ws")
                     col.prop(tex_set, "bake_ambient_occlusion")
+                    if tex_set.bake_ambient_occlusion:
+                        row = col.row()
+                        row.separator()
+                        ao_col = row.column(align=True)
+                        ao_col.prop(tex_set, "ao_local_only")
+                        ao_col.prop(tex_set, "ao_samples")
+                        ao_col.prop(tex_set, "ao_distance")
                     col.prop(tex_set, "bake_curvature")
+                    if tex_set.bake_curvature:
+                        row = col.row()
+                        row.separator()
+                        curv_col = row.column(align=True)
+                        curv_col.prop(tex_set, "curvature_exponent")
                     col.prop(tex_set, "bake_thickness")
+                    if tex_set.bake_thickness:
+                        row = col.row()
+                        row.separator()
+                        thick_col = row.column(align=True)
+                        thick_col.prop(tex_set, "thickness_samples")
+                        thick_col.prop(tex_set, "thickness_distance")
                     col.prop(tex_set, "bake_position")
                     col.prop(tex_set, "bake_random_island")
 
@@ -149,10 +197,6 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 cage_box = layout.box()
                 cage_box.label(text="Low Poly Settings")
                 cage_box.prop(low_item, "use_cage")
-                cage_box.prop(low_item, "override_global_settings")
-                if low_item.override_global_settings:
-                    cage_box.prop(low_item, "cage_extrusion")
-                    cage_box.prop(low_item, "cage_max_ray_distance")
                 if low_item.use_cage:
                     cage_box.prop_search(
                         low_item,
@@ -162,6 +206,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         text="",
                         icon="VIEWZOOM",
                     )
+                cage_box.prop(low_item, "override_global_settings")
+                if low_item.override_global_settings:
+                    cage_col = cage_box.column(align=True)
+                    cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
+                    cage_col.prop(low_item, "cage_max_ray_distance")
 
                 high_box = layout.box()
                 header = high_box.row(align=True)
