@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import os
+
 import bpy
 
 
@@ -226,6 +228,13 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     bl_description = "Bake all texture sets"
 
     def execute(self, context):
+        material_name = "_dummy_baker_highpoly_material"
+        if material_name not in bpy.data.materials:
+            blend_path = os.path.join(os.path.dirname(__file__), "dummy_bake_data.blend")
+            if os.path.exists(blend_path):
+                with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
+                    if material_name in data_from.materials:
+                        data_to.materials = [material_name]
         self.report({"INFO"}, "Bake All not implemented yet")
         return {"FINISHED"}
 

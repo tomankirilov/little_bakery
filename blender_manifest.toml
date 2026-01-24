@@ -4,7 +4,7 @@ id = "dummy_bake_tools"
 version = "0.1.0"
 name = "Dummy Bake Tools"
 tagline = "Skeleton addon with a Sidebar panel"
-maintainer = "Toman"
+maintainer = "tomanov"
 # Supported types: "add-on", "theme"
 type = "add-on"
 

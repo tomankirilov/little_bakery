@@ -3,11 +3,11 @@
 
 bl_info = {
     "name": "Dummy Bake Tools",
-    "author": "Toman",
+    "author": "tomanov",
     "version": (0, 1, 0),
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Dummy Bake",
-    "description": "UI scaffolding for bake automation",
+    "description": "bake automation",
     "category": "Object",
 }
 
