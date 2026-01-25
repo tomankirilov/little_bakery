@@ -82,6 +82,16 @@ class DummyBakeData(bpy.types.PropertyGroup):
         ],
         default="CPU",
     )
+    global_msaa: bpy.props.EnumProperty(
+        name="MSAA",
+        items=[
+            ("NONE", "None", ""),
+            ("2", "x2", ""),
+            ("4", "x4", ""),
+            ("8", "x8", ""),
+        ],
+        default="NONE",
+    )
     output_dir: bpy.props.StringProperty(
         name="Output",
         subtype="DIR_PATH",

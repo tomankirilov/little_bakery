@@ -288,6 +288,13 @@ def _bake_targets_from_settings(settings):
     ]
 
 
+def _msaa_factor(value):
+    try:
+        return max(1, int(value))
+    except (TypeError, ValueError):
+        return 1
+
+
 def _effective_settings(data, tex_set):
     if tex_set.override_global_settings:
         return {
@@ -315,6 +322,7 @@ def _effective_settings(data, tex_set):
             "position_suffix": tex_set.position_suffix,
             "random_island_suffix": tex_set.random_island_suffix,
             "dilation": data.global_dilation,
+            "msaa": data.global_msaa,
             "output_format": data.output_format,
             "output_color_mode": data.output_color_mode,
             "output_color_depth": data.output_color_depth,
@@ -345,6 +353,7 @@ def _effective_settings(data, tex_set):
         "position_suffix": data.global_position_suffix,
         "random_island_suffix": data.global_random_island_suffix,
         "dilation": data.global_dilation,
+        "msaa": data.global_msaa,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
         "output_color_depth": data.output_color_depth,
@@ -706,11 +715,17 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         saved_materials[high_obj] = _capture_materials(high_obj)
                     _ensure_material_slot(high_obj, material)
 
+            scale_factor = _msaa_factor(settings["msaa"])
+            target_resolution = settings["resolution"]
+            bake_resolution = (
+                target_resolution[0] * scale_factor,
+                target_resolution[1] * scale_factor,
+            )
             for target_name, enabled, suffix in _bake_targets_from_settings(settings):
                 if not enabled:
                     continue
 
-                image = _make_image(f"{tex_set.name}{suffix}", resolution[0], resolution[1])
+                image = _make_image(f"{tex_set.name}{suffix}", bake_resolution[0], bake_resolution[1])
                 _clear_image(image)
                 bake.use_clear = False
 
@@ -812,8 +827,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                 temp_collection.objects.unlink(obj)
                     bake.use_clear = False
 
-                if settings["dilation"] > 0:
-                    _dilate_image(image, settings["dilation"])
+                dilation = settings["dilation"] * scale_factor
+                if dilation > 0:
+                    _dilate_image(image, dilation)
+                if scale_factor > 1:
+                    image.scale(target_resolution[0], target_resolution[1])
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,
