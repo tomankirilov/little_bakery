@@ -86,40 +86,30 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         col = bake_box.column(align=True)
         col.operator("dummybake.bake_all", text="Bake All")
         col.operator("dummybake.bake_selected_set", text="Bake Selected Set")
-        col.prop(data, "output_dir", text="Output")
+        bake_box.separator()
+        indent_row = bake_box.row()
+        indent_row.separator()
+        sections = indent_row.column(align=True)
 
-        global_box = layout.box()
-        header = global_box.row(align=True)
+        header = sections.row(align=True)
         header.prop(
             data,
-            "show_global_settings",
-            icon="TRIA_DOWN" if data.show_global_settings else "TRIA_RIGHT",
+            "show_bake_targets",
+            icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Global Settings")
-        if data.show_global_settings:
-            col = global_box.column(align=True)
-            col.label(text="General")
-            general_col = _indent_column(col)
-            row = general_col.split(factor=0.4, align=True)
-            row.label(text="Render Device")
-            row.prop(data, "render_device", text="")
-            general_col.prop(data, "global_extrusion")
-            general_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
-            general_col.prop(data, "global_dilation")
-            col.separator()
-            col.label(text="Bake Targets")
-            bake_col = _indent_column(col)
-            _draw_resolution_row(bake_col, data, "global_resolution")
-            bake_col.prop(data, "global_bake_normals_ws")
-            if data.global_bake_normals_ws:
-                normals_col = _indent_column(bake_col)
-                _draw_custom_suffix(normals_col, data, "global_", "normals")
+        header.label(text="Bake Targets")
+        if data.show_bake_targets:
+            bake_col = _indent_column(sections)
             bake_col.prop(data, "global_bake_tangent_normal")
             if data.global_bake_tangent_normal:
                 tangent_col = _indent_column(bake_col)
                 _draw_custom_suffix(tangent_col, data, "global_", "tangent")
+            bake_col.prop(data, "global_bake_normals_ws")
+            if data.global_bake_normals_ws:
+                normals_col = _indent_column(bake_col)
+                _draw_custom_suffix(normals_col, data, "global_", "normals")
             bake_col.prop(data, "global_bake_ambient_occlusion")
             if data.global_bake_ambient_occlusion:
                 ao_col = _indent_column(bake_col)
@@ -140,6 +130,51 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if data.global_bake_random_island:
                 rand_col = _indent_column(bake_col)
                 _draw_custom_suffix(rand_col, data, "global_", "random_island")
+
+        header = sections.row(align=True)
+        header.prop(
+            data,
+            "show_render_settings",
+            icon="TRIA_DOWN" if data.show_render_settings else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Rendering")
+        if data.show_render_settings:
+            render_col = _indent_column(sections)
+            row = render_col.split(factor=0.4, align=True)
+            row.label(text="Render Device")
+            row.prop(data, "render_device", text="")
+            _draw_resolution_row(render_col, data, "global_resolution")
+            render_col.prop(data, "global_dilation")
+            render_col.prop(data, "global_extrusion")
+            render_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+
+        header = sections.row(align=True)
+        header.prop(
+            data,
+            "show_global_settings",
+            icon="TRIA_DOWN" if data.show_global_settings else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Output")
+        if data.show_global_settings:
+            output_col = _indent_column(sections)
+            output_col.prop(data, "output_dir", text="Output")
+            row = output_col.split(factor=0.4, align=True)
+            row.label(text="File Format")
+            row.prop(data, "output_format", text="")
+            row = output_col.split(factor=0.4, align=True)
+            row.label(text="Color")
+            row.prop(data, "output_color_mode", text="")
+            if data.output_format == "PNG":
+                row = output_col.split(factor=0.4, align=True)
+                row.label(text="Color Depth")
+                row.prop(data, "output_color_depth", text="")
+                row = output_col.split(factor=0.4, align=True)
+                row.label(text="Compression")
+                row.prop(data, "output_png_compression", text="")
 
         box = layout.box()
         header = box.row(align=True)
@@ -173,14 +208,14 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if tex_set.override_global_settings:
                 set_col = _indent_column(box)
                 _draw_resolution_row(set_col, tex_set, "size")
-                set_col.prop(tex_set, "bake_normals_ws")
-                if tex_set.bake_normals_ws:
-                    normals_col = _indent_column(set_col)
-                    _draw_custom_suffix(normals_col, tex_set, "", "normals")
                 set_col.prop(tex_set, "bake_tangent_normal")
                 if tex_set.bake_tangent_normal:
                     tangent_col = _indent_column(set_col)
                     _draw_custom_suffix(tangent_col, tex_set, "", "tangent")
+                set_col.prop(tex_set, "bake_normals_ws")
+                if tex_set.bake_normals_ws:
+                    normals_col = _indent_column(set_col)
+                    _draw_custom_suffix(normals_col, tex_set, "", "normals")
                 set_col.prop(tex_set, "bake_ambient_occlusion")
                 if tex_set.bake_ambient_occlusion:
                     ao_col = _indent_column(set_col)

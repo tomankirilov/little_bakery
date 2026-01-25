@@ -248,18 +248,38 @@ def _dilate_image(image, iterations):
     image.update()
 
 
-def _save_image(image, output_dir, filename):
+def _save_image(image, output_dir, filename, settings, scene=None):
+    scene = scene or bpy.context.scene
     output_dir = bpy.path.abspath(output_dir or "//")
     os.makedirs(output_dir, exist_ok=True)
-    image.filepath_raw = os.path.join(output_dir, filename)
-    image.file_format = "PNG"
-    image.save()
+    filepath = os.path.join(output_dir, filename)
+    image.filepath_raw = filepath
+
+    image_settings = scene.render.image_settings
+    saved_settings = {
+        "file_format": image_settings.file_format,
+        "color_mode": image_settings.color_mode,
+        "color_depth": image_settings.color_depth,
+        "compression": image_settings.compression,
+    }
+    try:
+        image_settings.file_format = settings["output_format"]
+        image_settings.color_mode = settings["output_color_mode"]
+        if settings["output_format"] == "PNG":
+            image_settings.color_depth = settings["output_color_depth"]
+            image_settings.compression = settings["output_png_compression"]
+        image.save_render(filepath, scene=scene)
+    finally:
+        image_settings.file_format = saved_settings["file_format"]
+        image_settings.color_mode = saved_settings["color_mode"]
+        image_settings.color_depth = saved_settings["color_depth"]
+        image_settings.compression = saved_settings["compression"]
 
 
 def _bake_targets_from_settings(settings):
     return [
-        ("normals_ws", settings["normals_ws"], settings["normals_suffix"]),
         ("tangent_normal", settings["tangent_normal"], settings["tangent_suffix"]),
+        ("normals_ws", settings["normals_ws"], settings["normals_suffix"]),
         ("ambient_occlusion", settings["ambient_occlusion"], settings["ao_suffix"]),
         ("curvature", settings["curvature"], settings["curvature_suffix"]),
         ("thickness", settings["thickness"], settings["thickness_suffix"]),
@@ -295,6 +315,10 @@ def _effective_settings(data, tex_set):
             "position_suffix": tex_set.position_suffix,
             "random_island_suffix": tex_set.random_island_suffix,
             "dilation": data.global_dilation,
+            "output_format": data.output_format,
+            "output_color_mode": data.output_color_mode,
+            "output_color_depth": data.output_color_depth,
+            "output_png_compression": data.output_png_compression,
         }
     return {
         "resolution": data.global_resolution,
@@ -321,6 +345,10 @@ def _effective_settings(data, tex_set):
         "position_suffix": data.global_position_suffix,
         "random_island_suffix": data.global_random_island_suffix,
         "dilation": data.global_dilation,
+        "output_format": data.output_format,
+        "output_color_mode": data.output_color_mode,
+        "output_color_depth": data.output_color_depth,
+        "output_png_compression": data.output_png_compression,
     }
 
 
@@ -618,160 +646,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
             self.report({"WARNING"}, "No texture sets to bake")
             return {"CANCELLED"}
 
-        material = _load_highpoly_material()
-        if not material:
-            self.report({"WARNING"}, "Missing high poly material")
-            return {"CANCELLED"}
-
-        scene = context.scene
-        cycles = scene.cycles
-        bake = scene.render.bake
-        view_layer = context.view_layer
-
-        saved = _capture_scene_settings(scene)
-        start_time = time.perf_counter()
-        try:
-            _apply_scene_settings(scene, data)
-
-            for tex_set in data.texture_sets:
-                settings = _effective_settings(data, tex_set)
-                resolution = settings["resolution"]
-                if not tex_set.low_polys:
-                    continue
-
-                saved_materials = {}
-                for low_item in tex_set.low_polys:
-                    low_obj = low_item.object
-                    if low_obj and low_obj.type == "MESH":
-                        saved_materials.setdefault(low_obj, _capture_materials(low_obj))
-                    for high_item in low_item.high_polys:
-                        high_obj = high_item.object
-                        if not high_obj or high_obj.type != "MESH":
-                            continue
-                        if high_obj not in saved_materials:
-                            saved_materials[high_obj] = _capture_materials(high_obj)
-                        _ensure_material_slot(high_obj, material)
-
-                for target_name, enabled, suffix in _bake_targets_from_settings(settings):
-                    if not enabled:
-                        continue
-
-                    image = _make_image(f"{tex_set.name}{suffix}", resolution[0], resolution[1])
-                    _clear_image(image)
-                    bake.use_clear = False
-
-                    if target_name == "tangent_normal":
-                        cycles.samples = 1
-                        cycles.bake_type = "NORMAL"
-                        bake.normal_space = "TANGENT"
-                    elif target_name == "ambient_occlusion":
-                        cycles.samples = settings["ao_render_samples"]
-                        cycles.bake_type = "EMIT"
-                        _set_highpoly_material_mode(material, "ambient_occlusion")
-                    elif target_name == "thickness":
-                        cycles.samples = settings["thickness_render_samples"]
-                        cycles.bake_type = "EMIT"
-                        _set_highpoly_material_mode(material, "thickness")
-                    else:
-                        cycles.samples = 1
-                        cycles.bake_type = "EMIT"
-                        mode = _BAKE_MODE_MAP.get(target_name)
-                        if mode:
-                            _set_highpoly_material_mode(material, mode)
-                        _set_highpoly_material_settings(
-                            material,
-                            settings["ao_samples"],
-                            settings["ao_local_only"],
-                            settings["ao_distance"],
-                            settings["curvature_exponent"],
-                            settings["thickness_samples"],
-                            settings["thickness_distance"],
-                        )
-
-                    for low_item in tex_set.low_polys:
-                        low_obj = low_item.object
-                        if not low_obj or low_obj.type != "MESH":
-                            continue
-
-                        high_objs = [
-                            item.object for item in low_item.high_polys
-                            if item.object and item.object.type == "MESH"
-                        ]
-                        for obj in high_objs + [low_obj]:
-                            obj.hide_viewport = False
-                            obj.hide_render = False
-
-                        if context.mode != "OBJECT":
-                            bpy.ops.object.mode_set(mode="OBJECT")
-
-                        selected, temp_links, temp_collection = _set_selection(
-                            scene,
-                            view_layer,
-                            high_objs + [low_obj],
-                            active=low_obj,
-                        )
-                        if (not selected or low_obj not in selected
-                                or context.view_layer.objects.active != low_obj):
-                            for obj in temp_links:
-                                if obj.name in temp_collection.objects:
-                                    temp_collection.objects.unlink(obj)
-                            continue
-                        bake.use_selected_to_active = len(selected) > 1
-                        if bake.use_selected_to_active and len(selected) < 2:
-                            for obj in temp_links:
-                                if obj.name in temp_collection.objects:
-                                    temp_collection.objects.unlink(obj)
-                            continue
-
-                        bake.use_cage = low_item.use_cage
-                        bake.cage_object = low_item.cage_object if low_item.use_cage else None
-                        if low_item.override_global_settings:
-                            bake.cage_extrusion = low_item.cage_extrusion
-                            bake.max_ray_distance = low_item.cage_max_ray_distance
-                        else:
-                            bake.cage_extrusion = data.global_extrusion
-                            bake.max_ray_distance = data.global_max_ray_distance
-
-                        material_slot = _ensure_low_material(low_obj)
-                        if not material_slot or not material_slot.node_tree:
-                            continue
-                        nodes = material_slot.node_tree.nodes
-                        image_node = nodes.new("ShaderNodeTexImage")
-                        image_node.image = image
-                        material_slot.node_tree.nodes.active = image_node
-                        try:
-                            override = _get_view3d_override(
-                                scene,
-                                view_layer,
-                                low_obj,
-                                selected,
-                            )
-                            if override:
-                                with bpy.context.temp_override(**override):
-                                    bpy.ops.object.bake(type=cycles.bake_type)
-                            else:
-                                bpy.ops.object.bake(type=cycles.bake_type)
-                        finally:
-                            nodes.remove(image_node)
-                            for obj in temp_links:
-                                if obj.name in temp_collection.objects:
-                                    temp_collection.objects.unlink(obj)
-                        bake.use_clear = False
-
-                    if settings["dilation"] > 0:
-                        _dilate_image(image, settings["dilation"])
-                    _save_image(image, data.output_dir, f"{tex_set.name}{suffix}.png")
-
-                for obj, mats in saved_materials.items():
-                    _restore_materials(obj, mats)
-        finally:
-            _restore_scene_settings(scene, saved)
-
-        elapsed = time.perf_counter() - start_time
-        message = f"Bake All finished in {elapsed:.2f}s"
-        print(f"DummyBake: {message}")
-        self.report({"INFO"}, message)
-        return {"FINISHED"}
+        result = _bake_texture_sets(self, context, data.texture_sets, "Bake All")
+        return {"FINISHED"} if result else {"CANCELLED"}
 
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
@@ -780,8 +656,183 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_description = "Bake the active texture set"
 
     def execute(self, context):
-        self.report({"INFO"}, "Bake Selected Set not implemented yet")
-        return {"FINISHED"}
+        data = context.scene.dummy_bake_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            self.report({"WARNING"}, "No texture set selected")
+            return {"CANCELLED"}
+        result = _bake_texture_sets(
+            self,
+            context,
+            [data.texture_sets[index]],
+            "Bake Selected Set",
+        )
+        return {"FINISHED"} if result else {"CANCELLED"}
+
+
+def _bake_texture_sets(operator, context, texture_sets, label):
+    data = context.scene.dummy_bake_data
+    material = _load_highpoly_material()
+    if not material:
+        operator.report({"WARNING"}, "Missing high poly material")
+        return False
+
+    scene = context.scene
+    cycles = scene.cycles
+    bake = scene.render.bake
+    view_layer = context.view_layer
+
+    saved = _capture_scene_settings(scene)
+    start_time = time.perf_counter()
+    try:
+        _apply_scene_settings(scene, data)
+
+        for tex_set in texture_sets:
+            settings = _effective_settings(data, tex_set)
+            resolution = settings["resolution"]
+            if not tex_set.low_polys:
+                continue
+
+            saved_materials = {}
+            for low_item in tex_set.low_polys:
+                low_obj = low_item.object
+                if low_obj and low_obj.type == "MESH":
+                    saved_materials.setdefault(low_obj, _capture_materials(low_obj))
+                for high_item in low_item.high_polys:
+                    high_obj = high_item.object
+                    if not high_obj or high_obj.type != "MESH":
+                        continue
+                    if high_obj not in saved_materials:
+                        saved_materials[high_obj] = _capture_materials(high_obj)
+                    _ensure_material_slot(high_obj, material)
+
+            for target_name, enabled, suffix in _bake_targets_from_settings(settings):
+                if not enabled:
+                    continue
+
+                image = _make_image(f"{tex_set.name}{suffix}", resolution[0], resolution[1])
+                _clear_image(image)
+                bake.use_clear = False
+
+                if target_name == "tangent_normal":
+                    cycles.samples = 1
+                    cycles.bake_type = "NORMAL"
+                    bake.normal_space = "TANGENT"
+                elif target_name == "ambient_occlusion":
+                    cycles.samples = settings["ao_render_samples"]
+                    cycles.bake_type = "EMIT"
+                    _set_highpoly_material_mode(material, "ambient_occlusion")
+                elif target_name == "thickness":
+                    cycles.samples = settings["thickness_render_samples"]
+                    cycles.bake_type = "EMIT"
+                    _set_highpoly_material_mode(material, "thickness")
+                else:
+                    cycles.samples = 1
+                    cycles.bake_type = "EMIT"
+                    mode = _BAKE_MODE_MAP.get(target_name)
+                    if mode:
+                        _set_highpoly_material_mode(material, mode)
+                    _set_highpoly_material_settings(
+                        material,
+                        settings["ao_samples"],
+                        settings["ao_local_only"],
+                        settings["ao_distance"],
+                        settings["curvature_exponent"],
+                        settings["thickness_samples"],
+                        settings["thickness_distance"],
+                    )
+
+                for low_item in tex_set.low_polys:
+                    low_obj = low_item.object
+                    if not low_obj or low_obj.type != "MESH":
+                        continue
+
+                    high_objs = [
+                        item.object for item in low_item.high_polys
+                        if item.object and item.object.type == "MESH"
+                    ]
+                    for obj in high_objs + [low_obj]:
+                        obj.hide_viewport = False
+                        obj.hide_render = False
+
+                    if context.mode != "OBJECT":
+                        bpy.ops.object.mode_set(mode="OBJECT")
+
+                    selected, temp_links, temp_collection = _set_selection(
+                        scene,
+                        view_layer,
+                        high_objs + [low_obj],
+                        active=low_obj,
+                    )
+                    if (not selected or low_obj not in selected
+                            or context.view_layer.objects.active != low_obj):
+                        for obj in temp_links:
+                            if obj.name in temp_collection.objects:
+                                temp_collection.objects.unlink(obj)
+                        continue
+                    bake.use_selected_to_active = len(selected) > 1
+                    if bake.use_selected_to_active and len(selected) < 2:
+                        for obj in temp_links:
+                            if obj.name in temp_collection.objects:
+                                temp_collection.objects.unlink(obj)
+                        continue
+
+                    bake.use_cage = low_item.use_cage
+                    bake.cage_object = low_item.cage_object if low_item.use_cage else None
+                    if low_item.override_global_settings:
+                        bake.cage_extrusion = low_item.cage_extrusion
+                        bake.max_ray_distance = low_item.cage_max_ray_distance
+                    else:
+                        bake.cage_extrusion = data.global_extrusion
+                        bake.max_ray_distance = data.global_max_ray_distance
+
+                    material_slot = _ensure_low_material(low_obj)
+                    if not material_slot or not material_slot.node_tree:
+                        continue
+                    nodes = material_slot.node_tree.nodes
+                    image_node = nodes.new("ShaderNodeTexImage")
+                    image_node.image = image
+                    material_slot.node_tree.nodes.active = image_node
+                    try:
+                        override = _get_view3d_override(
+                            scene,
+                            view_layer,
+                            low_obj,
+                            selected,
+                        )
+                        if override:
+                            with bpy.context.temp_override(**override):
+                                bpy.ops.object.bake(type=cycles.bake_type)
+                        else:
+                            bpy.ops.object.bake(type=cycles.bake_type)
+                    finally:
+                        nodes.remove(image_node)
+                        for obj in temp_links:
+                            if obj.name in temp_collection.objects:
+                                temp_collection.objects.unlink(obj)
+                    bake.use_clear = False
+
+                if settings["dilation"] > 0:
+                    _dilate_image(image, settings["dilation"])
+                extension = "png" if settings["output_format"] == "PNG" else "tga"
+                _save_image(
+                    image,
+                    data.output_dir,
+                    f"{tex_set.name}{suffix}.{extension}",
+                    settings,
+                    scene=scene,
+                )
+
+            for obj, mats in saved_materials.items():
+                _restore_materials(obj, mats)
+    finally:
+        _restore_scene_settings(scene, saved)
+
+    elapsed = time.perf_counter() - start_time
+    message = f"{label} finished in {elapsed:.2f}s"
+    print(f"DummyBake: {message}")
+    operator.report({"INFO"}, message)
+    return True
 
 
 classes = (

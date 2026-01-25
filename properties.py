@@ -34,8 +34,8 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
         min=1,
         subtype="NONE",
     )
-    bake_normals_ws: bpy.props.BoolProperty(name="Normals WS", default=False)
-    bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Normal", default=False)
+    bake_normals_ws: bpy.props.BoolProperty(name="Object Space Normal", default=False)
+    bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Space Normal", default=False)
     normals_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     normals_suffix: bpy.props.StringProperty(name="Suffix", default="_normals_ws")
     tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
@@ -72,18 +72,52 @@ class DummyBakeData(bpy.types.PropertyGroup):
     show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=False)
     show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=False)
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
+    show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
+    show_bake_targets: bpy.props.BoolProperty(name="Show Bake Targets", default=False)
     render_device: bpy.props.EnumProperty(
         name="Render Device",
         items=[
             ("CPU", "CPU", ""),
             ("GPU", "GPU", ""),
         ],
-        default="GPU",
+        default="CPU",
     )
     output_dir: bpy.props.StringProperty(
         name="Output",
         subtype="DIR_PATH",
-        default="//",
+        default="",
+    )
+    output_format: bpy.props.EnumProperty(
+        name="File Format",
+        items=[
+            ("PNG", "PNG", ""),
+            ("TARGA", "TGA", ""),
+        ],
+        default="PNG",
+    )
+    output_color_mode: bpy.props.EnumProperty(
+        name="Color",
+        items=[
+            ("BW", "BW", ""),
+            ("RGB", "RGB", ""),
+            ("RGBA", "RGBA", ""),
+        ],
+        default="RGBA",
+    )
+    output_color_depth: bpy.props.EnumProperty(
+        name="Color Depth",
+        items=[
+            ("8", "8", ""),
+            ("16", "16", ""),
+        ],
+        default="8",
+    )
+    output_png_compression: bpy.props.IntProperty(
+        name="Compression",
+        default=15,
+        min=0,
+        max=100,
+        subtype="PERCENTAGE",
     )
     global_resolution: bpy.props.IntVectorProperty(
         name="Resolution",
@@ -92,8 +126,8 @@ class DummyBakeData(bpy.types.PropertyGroup):
         min=1,
         subtype="NONE",
     )
-    global_bake_normals_ws: bpy.props.BoolProperty(name="Normals WS", default=False)
-    global_bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Normal", default=False)
+    global_bake_normals_ws: bpy.props.BoolProperty(name="Object Space Normal", default=False)
+    global_bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Space Normal", default=False)
     global_normals_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_normals_suffix: bpy.props.StringProperty(name="Suffix", default="_normals_ws")
     global_tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
