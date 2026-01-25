@@ -5,6 +5,7 @@ import bpy
 
 class DummyBakeHighPolyItem(bpy.types.PropertyGroup):
     object: bpy.props.PointerProperty(type=bpy.types.Object)
+    color_attribute: bpy.props.StringProperty(name="Color Attribute", default="")
 
 
 class DummyBakeLowPolyItem(bpy.types.PropertyGroup):
@@ -59,10 +60,14 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
     bake_position: bpy.props.BoolProperty(name="Position", default=False)
     bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
+    bake_color_attribute: bpy.props.BoolProperty(name="Color Attribute", default=False)
     position_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     position_suffix: bpy.props.StringProperty(name="Suffix", default="_position")
     random_island_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     random_island_suffix: bpy.props.StringProperty(name="Suffix", default="_random_island")
+    color_attribute_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
+    color_attribute_suffix: bpy.props.StringProperty(name="Suffix", default="_color_attribute")
+    color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
 
 
 class DummyBakeData(bpy.types.PropertyGroup):
@@ -160,10 +165,14 @@ class DummyBakeData(bpy.types.PropertyGroup):
     global_thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
     global_bake_position: bpy.props.BoolProperty(name="Position", default=False)
     global_bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
+    global_bake_color_attribute: bpy.props.BoolProperty(name="Color Attribute", default=False)
     global_position_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_position_suffix: bpy.props.StringProperty(name="Suffix", default="_position")
     global_random_island_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_random_island_suffix: bpy.props.StringProperty(name="Suffix", default="_random_island")
+    global_color_attribute_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
+    global_color_attribute_suffix: bpy.props.StringProperty(name="Suffix", default="_color_attribute")
+    global_color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
     global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.0, min=0.0)
     global_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",

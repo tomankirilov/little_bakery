@@ -18,6 +18,7 @@ _BAKE_MODE_MAP = {
     "thickness": "thickness",
     "position": "position",
     "random_island": "random_island",
+    "color_attribute": "color_attribute",
 }
 
 
@@ -284,6 +285,7 @@ def _bake_targets_from_settings(settings):
         ("curvature", settings["curvature"], settings["curvature_suffix"]),
         ("thickness", settings["thickness"], settings["thickness_suffix"]),
         ("position", settings["position"], settings["position_suffix"]),
+        ("color_attribute", settings["color_attribute"], settings["color_attribute_suffix"]),
         ("random_island", settings["random_island"], settings["random_island_suffix"]),
     ]
 
@@ -293,6 +295,31 @@ def _msaa_factor(value):
         return max(1, int(value))
     except (TypeError, ValueError):
         return 1
+
+
+def _copy_color_attribute_material(base_material, attribute_name, cache, created_materials, created_node_groups):
+    key = attribute_name or ""
+    if key in cache:
+        return cache[key]
+
+    material_copy = base_material.copy()
+    node = material_copy.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
+    if not node or not hasattr(node, "node_tree") or not node.node_tree:
+        cache[key] = material_copy
+        created_materials.append(material_copy)
+        return material_copy
+
+    node_group_copy = node.node_tree.copy()
+    node.node_tree = node_group_copy
+    node.inputs[_BAKE_MODE_INPUT_INDEX].default_value = "color_attribute"
+    color_node = node_group_copy.nodes.get("Color Attribute")
+    if color_node:
+        color_node.layer_name = attribute_name or ""
+
+    created_materials.append(material_copy)
+    created_node_groups.append(node_group_copy)
+    cache[key] = material_copy
+    return material_copy
 
 
 def _effective_settings(data, tex_set):
@@ -306,6 +333,7 @@ def _effective_settings(data, tex_set):
             "thickness": tex_set.bake_thickness,
             "position": tex_set.bake_position,
             "random_island": tex_set.bake_random_island,
+            "color_attribute": tex_set.bake_color_attribute,
             "ao_samples": tex_set.ao_samples,
             "ao_render_samples": tex_set.ao_render_samples,
             "ao_local_only": tex_set.ao_local_only,
@@ -321,6 +349,8 @@ def _effective_settings(data, tex_set):
             "thickness_suffix": tex_set.thickness_suffix,
             "position_suffix": tex_set.position_suffix,
             "random_island_suffix": tex_set.random_island_suffix,
+            "color_attribute_suffix": tex_set.color_attribute_suffix,
+            "color_attribute_name": tex_set.color_attribute_name,
             "dilation": data.global_dilation,
             "msaa": data.global_msaa,
             "output_format": data.output_format,
@@ -337,6 +367,7 @@ def _effective_settings(data, tex_set):
         "thickness": data.global_bake_thickness,
         "position": data.global_bake_position,
         "random_island": data.global_bake_random_island,
+        "color_attribute": data.global_bake_color_attribute,
         "ao_samples": data.global_ao_samples,
         "ao_render_samples": data.global_ao_render_samples,
         "ao_local_only": data.global_ao_local_only,
@@ -352,6 +383,8 @@ def _effective_settings(data, tex_set):
         "thickness_suffix": data.global_thickness_suffix,
         "position_suffix": data.global_position_suffix,
         "random_island_suffix": data.global_random_island_suffix,
+        "color_attribute_suffix": data.global_color_attribute_suffix,
+        "color_attribute_name": data.global_color_attribute_name,
         "dilation": data.global_dilation,
         "msaa": data.global_msaa,
         "output_format": data.output_format,
@@ -692,6 +725,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     view_layer = context.view_layer
 
     saved = _capture_scene_settings(scene)
+    created_materials = []
+    created_node_groups = []
     start_time = time.perf_counter()
     try:
         _apply_scene_settings(scene, data)
@@ -703,6 +738,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 continue
 
             saved_materials = {}
+            color_attribute_materials = {}
             for low_item in tex_set.low_polys:
                 low_obj = low_item.object
                 if low_obj and low_obj.type == "MESH":
@@ -741,6 +777,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     cycles.samples = settings["thickness_render_samples"]
                     cycles.bake_type = "EMIT"
                     _set_highpoly_material_mode(material, "thickness")
+                elif target_name == "color_attribute":
+                    cycles.samples = 1
+                    cycles.bake_type = "EMIT"
                 else:
                     cycles.samples = 1
                     cycles.bake_type = "EMIT"
@@ -762,10 +801,24 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     if not low_obj or low_obj.type != "MESH":
                         continue
 
-                    high_objs = [
-                        item.object for item in low_item.high_polys
+                    high_items = [
+                        item for item in low_item.high_polys
                         if item.object and item.object.type == "MESH"
                     ]
+                    high_objs = [item.object for item in high_items]
+                    if target_name == "color_attribute":
+                        for item in high_items:
+                            attr_name = (item.color_attribute or "").strip()
+                            if not attr_name:
+                                attr_name = settings["color_attribute_name"]
+                            mat = _copy_color_attribute_material(
+                                material,
+                                attr_name,
+                                color_attribute_materials,
+                                created_materials,
+                                created_node_groups,
+                            )
+                            _ensure_material_slot(item.object, mat)
                     for obj in high_objs + [low_obj]:
                         obj.hide_viewport = False
                         obj.hide_render = False
@@ -826,6 +879,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                             if obj.name in temp_collection.objects:
                                 temp_collection.objects.unlink(obj)
                     bake.use_clear = False
+                    if target_name == "color_attribute":
+                        for item in high_items:
+                            _ensure_material_slot(item.object, material)
 
                 dilation = settings["dilation"] * scale_factor
                 if dilation > 0:
@@ -845,6 +901,16 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 _restore_materials(obj, mats)
     finally:
         _restore_scene_settings(scene, saved)
+        for mat in created_materials:
+            try:
+                bpy.data.materials.remove(mat, do_unlink=True)
+            except RuntimeError:
+                pass
+        for group in created_node_groups:
+            try:
+                bpy.data.node_groups.remove(group, do_unlink=True)
+            except RuntimeError:
+                pass
 
     elapsed = time.perf_counter() - start_time
     message = f"{label} finished in {elapsed:.2f}s"

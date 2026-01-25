@@ -125,6 +125,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if data.global_bake_position:
                 pos_col = _indent_column(bake_col)
                 _draw_custom_suffix(pos_col, data, "global_", "position")
+            bake_col.prop(data, "global_bake_color_attribute")
+            if data.global_bake_color_attribute:
+                color_col = _indent_column(bake_col)
+                color_col.prop(data, "global_color_attribute_name", text="Color Attribute")
+                _draw_custom_suffix(color_col, data, "global_", "color_attribute")
             bake_col.prop(data, "global_bake_random_island")
             if data.global_bake_random_island:
                 rand_col = _indent_column(bake_col)
@@ -236,6 +241,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     if tex_set.bake_position:
                         pos_col = _indent_column(set_col)
                         _draw_custom_suffix(pos_col, tex_set, "", "position")
+                    set_col.prop(tex_set, "bake_color_attribute")
+                    if tex_set.bake_color_attribute:
+                        color_col = _indent_column(set_col)
+                        color_col.prop(tex_set, "color_attribute_name", text="Color Attribute")
+                        _draw_custom_suffix(color_col, tex_set, "", "color_attribute")
                     set_col.prop(tex_set, "bake_random_island")
                     if tex_set.bake_random_island:
                         rand_col = _indent_column(set_col)
@@ -313,6 +323,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
                     clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
                     clear_op.list_kind = "HIGH"
+                    if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
+                        high_item = low_item.high_polys[low_item.active_high_index]
+                        high_box.prop(high_item, "color_attribute")
 
 
 classes = (
