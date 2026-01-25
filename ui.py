@@ -83,9 +83,17 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 row = bake_col.row()
                 row.separator()
                 normals_col = row.column(align=True)
-                normals_col.prop(data, "global_normals_custom_prefix")
-                if data.global_normals_custom_prefix:
-                    normals_col.prop(data, "global_normals_prefix")
+                normals_col.prop(data, "global_normals_custom_suffix")
+                if data.global_normals_custom_suffix:
+                    normals_col.prop(data, "global_normals_suffix")
+            bake_col.prop(data, "global_bake_tangent_normal")
+            if data.global_bake_tangent_normal:
+                row = bake_col.row()
+                row.separator()
+                tangent_col = row.column(align=True)
+                tangent_col.prop(data, "global_tangent_custom_suffix")
+                if data.global_tangent_custom_suffix:
+                    tangent_col.prop(data, "global_tangent_suffix")
             bake_col.prop(data, "global_bake_ambient_occlusion")
             if data.global_bake_ambient_occlusion:
                 row = bake_col.row()
@@ -94,18 +102,18 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 ao_col.prop(data, "global_ao_local_only")
                 ao_col.prop(data, "global_ao_samples")
                 ao_col.prop(data, "global_ao_distance")
-                ao_col.prop(data, "global_ao_custom_prefix")
-                if data.global_ao_custom_prefix:
-                    ao_col.prop(data, "global_ao_prefix")
+                ao_col.prop(data, "global_ao_custom_suffix")
+                if data.global_ao_custom_suffix:
+                    ao_col.prop(data, "global_ao_suffix")
             bake_col.prop(data, "global_bake_curvature")
             if data.global_bake_curvature:
                 row = bake_col.row()
                 row.separator()
                 curv_col = row.column(align=True)
                 curv_col.prop(data, "global_curvature_exponent")
-                curv_col.prop(data, "global_curvature_custom_prefix")
-                if data.global_curvature_custom_prefix:
-                    curv_col.prop(data, "global_curvature_prefix")
+                curv_col.prop(data, "global_curvature_custom_suffix")
+                if data.global_curvature_custom_suffix:
+                    curv_col.prop(data, "global_curvature_suffix")
             bake_col.prop(data, "global_bake_thickness")
             if data.global_bake_thickness:
                 row = bake_col.row()
@@ -113,25 +121,25 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 thick_col = row.column(align=True)
                 thick_col.prop(data, "global_thickness_samples")
                 thick_col.prop(data, "global_thickness_distance")
-                thick_col.prop(data, "global_thickness_custom_prefix")
-                if data.global_thickness_custom_prefix:
-                    thick_col.prop(data, "global_thickness_prefix")
+                thick_col.prop(data, "global_thickness_custom_suffix")
+                if data.global_thickness_custom_suffix:
+                    thick_col.prop(data, "global_thickness_suffix")
             bake_col.prop(data, "global_bake_position")
             if data.global_bake_position:
                 row = bake_col.row()
                 row.separator()
                 pos_col = row.column(align=True)
-                pos_col.prop(data, "global_position_custom_prefix")
-                if data.global_position_custom_prefix:
-                    pos_col.prop(data, "global_position_prefix")
+                pos_col.prop(data, "global_position_custom_suffix")
+                if data.global_position_custom_suffix:
+                    pos_col.prop(data, "global_position_suffix")
             bake_col.prop(data, "global_bake_random_island")
             if data.global_bake_random_island:
                 row = bake_col.row()
                 row.separator()
                 rand_col = row.column(align=True)
-                rand_col.prop(data, "global_random_island_custom_prefix")
-                if data.global_random_island_custom_prefix:
-                    rand_col.prop(data, "global_random_island_prefix")
+                rand_col.prop(data, "global_random_island_custom_suffix")
+                if data.global_random_island_custom_suffix:
+                    rand_col.prop(data, "global_random_island_suffix")
 
         box = layout.box()
         header = box.row(align=True)
@@ -174,9 +182,17 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     row = set_col.row()
                     row.separator()
                     normals_col = row.column(align=True)
-                    normals_col.prop(tex_set, "normals_custom_prefix")
-                    if tex_set.normals_custom_prefix:
-                        normals_col.prop(tex_set, "normals_prefix")
+                    normals_col.prop(tex_set, "normals_custom_suffix")
+                    if tex_set.normals_custom_suffix:
+                        normals_col.prop(tex_set, "normals_suffix")
+                set_col.prop(tex_set, "bake_tangent_normal")
+                if tex_set.bake_tangent_normal:
+                    row = set_col.row()
+                    row.separator()
+                    tangent_col = row.column(align=True)
+                    tangent_col.prop(tex_set, "tangent_custom_suffix")
+                    if tex_set.tangent_custom_suffix:
+                        tangent_col.prop(tex_set, "tangent_suffix")
                 set_col.prop(tex_set, "bake_ambient_occlusion")
                 if tex_set.bake_ambient_occlusion:
                     row = set_col.row()
@@ -185,18 +201,18 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     ao_col.prop(tex_set, "ao_local_only")
                     ao_col.prop(tex_set, "ao_samples")
                     ao_col.prop(tex_set, "ao_distance")
-                    ao_col.prop(tex_set, "ao_custom_prefix")
-                    if tex_set.ao_custom_prefix:
-                        ao_col.prop(tex_set, "ao_prefix")
+                    ao_col.prop(tex_set, "ao_custom_suffix")
+                    if tex_set.ao_custom_suffix:
+                        ao_col.prop(tex_set, "ao_suffix")
                 set_col.prop(tex_set, "bake_curvature")
                 if tex_set.bake_curvature:
                     row = set_col.row()
                     row.separator()
                     curv_col = row.column(align=True)
                     curv_col.prop(tex_set, "curvature_exponent")
-                    curv_col.prop(tex_set, "curvature_custom_prefix")
-                    if tex_set.curvature_custom_prefix:
-                        curv_col.prop(tex_set, "curvature_prefix")
+                    curv_col.prop(tex_set, "curvature_custom_suffix")
+                    if tex_set.curvature_custom_suffix:
+                        curv_col.prop(tex_set, "curvature_suffix")
                 set_col.prop(tex_set, "bake_thickness")
                 if tex_set.bake_thickness:
                     row = set_col.row()
@@ -204,25 +220,25 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     thick_col = row.column(align=True)
                     thick_col.prop(tex_set, "thickness_samples")
                     thick_col.prop(tex_set, "thickness_distance")
-                    thick_col.prop(tex_set, "thickness_custom_prefix")
-                    if tex_set.thickness_custom_prefix:
-                        thick_col.prop(tex_set, "thickness_prefix")
+                    thick_col.prop(tex_set, "thickness_custom_suffix")
+                    if tex_set.thickness_custom_suffix:
+                        thick_col.prop(tex_set, "thickness_suffix")
                 set_col.prop(tex_set, "bake_position")
                 if tex_set.bake_position:
                     row = set_col.row()
                     row.separator()
                     pos_col = row.column(align=True)
-                    pos_col.prop(tex_set, "position_custom_prefix")
-                    if tex_set.position_custom_prefix:
-                        pos_col.prop(tex_set, "position_prefix")
+                    pos_col.prop(tex_set, "position_custom_suffix")
+                    if tex_set.position_custom_suffix:
+                        pos_col.prop(tex_set, "position_suffix")
                 set_col.prop(tex_set, "bake_random_island")
                 if tex_set.bake_random_island:
                     row = set_col.row()
                     row.separator()
                     rand_col = row.column(align=True)
-                    rand_col.prop(tex_set, "random_island_custom_prefix")
-                    if tex_set.random_island_custom_prefix:
-                        rand_col.prop(tex_set, "random_island_prefix")
+                    rand_col.prop(tex_set, "random_island_custom_suffix")
+                    if tex_set.random_island_custom_suffix:
+                        rand_col.prop(tex_set, "random_island_suffix")
 
             low_box = layout.box()
             header = low_box.row(align=True)

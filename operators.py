@@ -6,6 +6,223 @@ import bpy
 
 
 _GEOMETRY_SKIP_TYPES = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE", "SPEAKER"}
+_HIGH_MATERIAL_NAME = "_dummy_baker_highpoly_material"
+_HIGH_MATERIAL_NODE_NAME = "_baker_highpoly_material"
+_BAKE_MODE_INPUT_INDEX = 0
+_TEMP_COLLECTION_NAME = "DummyBake_Temp"
+
+
+def _load_highpoly_material():
+    material = bpy.data.materials.get(_HIGH_MATERIAL_NAME)
+    if material:
+        return material
+    blend_path = os.path.join(os.path.dirname(__file__), "dummy_bake_data.blend")
+    if os.path.exists(blend_path):
+        with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
+            if _HIGH_MATERIAL_NAME in data_from.materials:
+                data_to.materials = [_HIGH_MATERIAL_NAME]
+    return bpy.data.materials.get(_HIGH_MATERIAL_NAME)
+
+
+def _set_highpoly_material_mode(material, mode):
+    if not material or not material.node_tree:
+        return
+    node = material.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
+    if not node or not node.inputs:
+        return
+    node.inputs[_BAKE_MODE_INPUT_INDEX].default_value = mode
+
+
+def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_distance,
+                                    curvature_exponent, thickness_samples, thickness_distance):
+    if not material:
+        return
+    node_group = bpy.data.node_groups.get(_HIGH_MATERIAL_NODE_NAME)
+    if node_group:
+        ao_node = node_group.nodes.get("Ambient Occlusion")
+        if ao_node:
+            ao_node.samples = ao_samples
+            ao_node.only_local = ao_local_only
+        thickness_node = node_group.nodes.get("BAKER_THICKNESS_SAMPLES")
+        if thickness_node:
+            thickness_node.samples = thickness_samples
+    if material.node_tree:
+        node = material.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
+        if node and len(node.inputs) >= 4:
+            node.inputs[1].default_value = ao_distance
+            node.inputs[2].default_value = curvature_exponent
+            node.inputs[3].default_value = thickness_distance
+
+
+def _find_layer_collection(layer_collection, target_collection):
+    if layer_collection.collection == target_collection:
+        return layer_collection
+    for child in layer_collection.children:
+        found = _find_layer_collection(child, target_collection)
+        if found:
+            return found
+    return None
+
+
+def _ensure_temp_collection(scene, view_layer):
+    collection = bpy.data.collections.get(_TEMP_COLLECTION_NAME)
+    if not collection:
+        collection = bpy.data.collections.new(_TEMP_COLLECTION_NAME)
+    if collection.name not in scene.collection.children:
+        scene.collection.children.link(collection)
+    layer_collection = _find_layer_collection(view_layer.layer_collection, collection)
+    if layer_collection:
+        layer_collection.exclude = False
+        layer_collection.hide_viewport = False
+    return collection
+
+
+def _get_view3d_override(scene, view_layer, active, selected):
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            for region in area.regions:
+                if region.type == "WINDOW":
+                    return {
+                        "window": window,
+                        "screen": window.screen,
+                        "area": area,
+                        "region": region,
+                        "scene": scene,
+                        "view_layer": view_layer,
+                        "active_object": active,
+                        "selected_objects": selected,
+                        "selected_editable_objects": selected,
+                    }
+    return {}
+
+
+def _ensure_material_slot(obj, material):
+    data = getattr(obj, "data", None)
+    if not data or not hasattr(data, "materials"):
+        return False
+    if len(data.materials) == 0:
+        data.materials.append(material)
+    else:
+        data.materials[0] = material
+    return True
+
+
+def _ensure_low_material(obj):
+    data = getattr(obj, "data", None)
+    if not data or not hasattr(data, "materials"):
+        return None
+    if len(data.materials) == 0 or data.materials[0] is None:
+        material = bpy.data.materials.new(name="DummyBake_Low")
+        material.use_nodes = True
+        data.materials.append(material)
+        return material
+    material = data.materials[0]
+    material.use_nodes = True
+    return material
+
+
+def _set_selection(scene, objects, active=None):
+    view_layer = bpy.context.view_layer
+    for obj in view_layer.objects:
+        obj.select_set(False)
+
+    temp_collection = _ensure_temp_collection(scene, view_layer)
+    temp_links = []
+    for obj in objects:
+        if obj.name not in view_layer.objects:
+            try:
+                if obj.name not in temp_collection.objects:
+                    temp_collection.objects.link(obj)
+                temp_links.append(obj)
+            except RuntimeError:
+                continue
+
+    selectable = [obj for obj in objects if obj.name in view_layer.objects]
+    for obj in selectable:
+        obj.hide_select = False
+        obj.hide_set(False)
+        obj.select_set(True)
+    if active and active.name in view_layer.objects:
+        view_layer.objects.active = active
+    return selectable, temp_links, temp_collection
+
+
+def _make_image(name, width, height):
+    image = bpy.data.images.new(name=name, width=width, height=height, alpha=True)
+    image.generated_color = (0.0, 0.0, 0.0, 0.0)
+    return image
+
+
+def _save_image(image, output_dir, filename):
+    output_dir = bpy.path.abspath(output_dir or "//")
+    os.makedirs(output_dir, exist_ok=True)
+    image.filepath_raw = os.path.join(output_dir, filename)
+    image.file_format = "PNG"
+    image.save()
+
+
+def _bake_targets_from_settings(settings):
+    return [
+        ("normals_ws", settings["normals_ws"], settings["normals_suffix"]),
+        ("tangent_normal", settings["tangent_normal"], settings["tangent_suffix"]),
+        ("ambient_occlusion", settings["ambient_occlusion"], settings["ao_suffix"]),
+        ("curvature", settings["curvature"], settings["curvature_suffix"]),
+        ("thickness", settings["thickness"], settings["thickness_suffix"]),
+        ("position", settings["position"], settings["position_suffix"]),
+        ("random_island", settings["random_island"], settings["random_island_suffix"]),
+    ]
+
+
+def _effective_settings(data, tex_set):
+    if tex_set.override_global_settings:
+        return {
+            "resolution": tex_set.size,
+            "normals_ws": tex_set.bake_normals_ws,
+            "tangent_normal": tex_set.bake_tangent_normal,
+            "ambient_occlusion": tex_set.bake_ambient_occlusion,
+            "curvature": tex_set.bake_curvature,
+            "thickness": tex_set.bake_thickness,
+            "position": tex_set.bake_position,
+            "random_island": tex_set.bake_random_island,
+            "ao_samples": tex_set.ao_samples,
+            "ao_local_only": tex_set.ao_local_only,
+            "ao_distance": tex_set.ao_distance,
+            "curvature_exponent": tex_set.curvature_exponent,
+            "thickness_samples": tex_set.thickness_samples,
+            "thickness_distance": tex_set.thickness_distance,
+            "normals_suffix": tex_set.normals_suffix,
+            "tangent_suffix": tex_set.tangent_suffix,
+            "ao_suffix": tex_set.ao_suffix,
+            "curvature_suffix": tex_set.curvature_suffix,
+            "thickness_suffix": tex_set.thickness_suffix,
+            "position_suffix": tex_set.position_suffix,
+            "random_island_suffix": tex_set.random_island_suffix,
+        }
+    return {
+        "resolution": data.global_resolution,
+        "normals_ws": data.global_bake_normals_ws,
+        "tangent_normal": data.global_bake_tangent_normal,
+        "ambient_occlusion": data.global_bake_ambient_occlusion,
+        "curvature": data.global_bake_curvature,
+        "thickness": data.global_bake_thickness,
+        "position": data.global_bake_position,
+        "random_island": data.global_bake_random_island,
+        "ao_samples": data.global_ao_samples,
+        "ao_local_only": data.global_ao_local_only,
+        "ao_distance": data.global_ao_distance,
+        "curvature_exponent": data.global_curvature_exponent,
+        "thickness_samples": data.global_thickness_samples,
+        "thickness_distance": data.global_thickness_distance,
+        "normals_suffix": data.global_normals_suffix,
+        "tangent_suffix": data.global_tangent_suffix,
+        "ao_suffix": data.global_ao_suffix,
+        "curvature_suffix": data.global_curvature_suffix,
+        "thickness_suffix": data.global_thickness_suffix,
+        "position_suffix": data.global_position_suffix,
+        "random_island_suffix": data.global_random_island_suffix,
+    }
 
 
 class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
@@ -228,14 +445,204 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     bl_description = "Bake all texture sets"
 
     def execute(self, context):
-        material_name = "_dummy_baker_highpoly_material"
-        if material_name not in bpy.data.materials:
-            blend_path = os.path.join(os.path.dirname(__file__), "dummy_bake_data.blend")
-            if os.path.exists(blend_path):
-                with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
-                    if material_name in data_from.materials:
-                        data_to.materials = [material_name]
-        self.report({"INFO"}, "Bake All not implemented yet")
+        data = context.scene.dummy_bake_data
+        if not data.texture_sets:
+            self.report({"WARNING"}, "No texture sets to bake")
+            return {"CANCELLED"}
+
+        material = _load_highpoly_material()
+        if not material:
+            self.report({"WARNING"}, "Missing high poly material")
+            return {"CANCELLED"}
+
+        scene = context.scene
+        cycles = scene.cycles
+        bake = scene.render.bake
+        view = scene.view_settings
+
+        saved = {
+            "engine": scene.render.engine,
+            "device": cycles.device,
+            "view_transform": view.view_transform,
+            "samples": cycles.samples,
+            "diffuse_bounces": cycles.diffuse_bounces,
+            "glossy_bounces": cycles.glossy_bounces,
+            "transmission_bounces": cycles.transmission_bounces,
+            "volume_bounces": cycles.volume_bounces,
+            "transparent_max_bounces": cycles.transparent_max_bounces,
+            "max_bounces": cycles.max_bounces,
+            "use_selected_to_active": bake.use_selected_to_active,
+            "margin": bake.margin,
+            "use_clear": bake.use_clear,
+            "use_cage": bake.use_cage,
+            "cage_object": bake.cage_object,
+            "cage_extrusion": bake.cage_extrusion,
+            "max_ray_distance": bake.max_ray_distance,
+            "bake_type": cycles.bake_type,
+            "normal_space": bake.normal_space,
+        }
+
+        try:
+            scene.render.engine = "CYCLES"
+            cycles.device = data.render_device
+            view.view_transform = "Standard"
+            cycles.diffuse_bounces = 0
+            cycles.glossy_bounces = 0
+            cycles.transmission_bounces = 0
+            cycles.volume_bounces = 0
+            cycles.transparent_max_bounces = 0
+            cycles.max_bounces = 0
+            bake.margin = 0
+            cycles.samples = data.render_samples
+
+            for tex_set in data.texture_sets:
+                settings = _effective_settings(data, tex_set)
+                resolution = settings["resolution"]
+                if not tex_set.low_polys:
+                    continue
+
+                used_high_polys = {}
+                for low_item in tex_set.low_polys:
+                    low_obj = low_item.object
+                    if not low_obj or low_obj.type != "MESH":
+                        continue
+                    for high_item in low_item.high_polys:
+                        high_obj = high_item.object
+                        if not high_obj or high_obj.type != "MESH":
+                            continue
+                        if high_obj not in used_high_polys:
+                            used_high_polys[high_obj] = list(high_obj.data.materials)
+                            _ensure_material_slot(high_obj, material)
+
+                for target_name, enabled, suffix in _bake_targets_from_settings(settings):
+                    if not enabled:
+                        continue
+
+                    image = _make_image(f"{tex_set.name}{suffix}", resolution[0], resolution[1])
+                    bake.use_clear = True
+
+                    if target_name == "tangent_normal":
+                        cycles.bake_type = "NORMAL"
+                        bake.normal_space = "TANGENT"
+                    else:
+                        cycles.bake_type = "EMIT"
+                        mode = {
+                            "normals_ws": "normalws",
+                            "ambient_occlusion": "ambient_occlusion",
+                            "curvature": "curvature",
+                            "thickness": "thickness",
+                            "position": "position",
+                            "random_island": "random_island",
+                        }.get(target_name)
+                        if mode:
+                            _set_highpoly_material_mode(material, mode)
+                        _set_highpoly_material_settings(
+                            material,
+                            settings["ao_samples"],
+                            settings["ao_local_only"],
+                            settings["ao_distance"],
+                            settings["curvature_exponent"],
+                            settings["thickness_samples"],
+                            settings["thickness_distance"],
+                        )
+
+                    for low_item in tex_set.low_polys:
+                        low_obj = low_item.object
+                        if not low_obj or low_obj.type != "MESH":
+                            continue
+
+                        high_objs = [
+                            item.object for item in low_item.high_polys
+                            if item.object and item.object.type == "MESH"
+                        ]
+                        for obj in high_objs + [low_obj]:
+                            obj.hide_viewport = False
+                            obj.hide_render = False
+
+                        if context.mode != "OBJECT":
+                            bpy.ops.object.mode_set(mode="OBJECT")
+
+                        selected, temp_links, temp_collection = _set_selection(
+                            scene,
+                            high_objs + [low_obj],
+                            active=low_obj,
+                        )
+                        if (not selected or low_obj not in selected
+                                or context.view_layer.objects.active != low_obj):
+                            for obj in temp_links:
+                                if obj.name in temp_collection.objects:
+                                    temp_collection.objects.unlink(obj)
+                            continue
+                        bake.use_selected_to_active = len(selected) > 1
+                        if bake.use_selected_to_active and len(selected) < 2:
+                            for obj in temp_links:
+                                if obj.name in temp_collection.objects:
+                                    temp_collection.objects.unlink(obj)
+                            continue
+
+                        bake.use_cage = low_item.use_cage
+                        bake.cage_object = low_item.cage_object if low_item.use_cage else None
+                        if low_item.override_global_settings:
+                            bake.cage_extrusion = low_item.cage_extrusion
+                            bake.max_ray_distance = low_item.cage_max_ray_distance
+                        else:
+                            bake.cage_extrusion = data.global_extrusion
+                            bake.max_ray_distance = data.global_max_ray_distance
+
+                        material_slot = _ensure_low_material(low_obj)
+                        if not material_slot or not material_slot.node_tree:
+                            continue
+                        nodes = material_slot.node_tree.nodes
+                        image_node = nodes.new("ShaderNodeTexImage")
+                        image_node.image = image
+                        material_slot.node_tree.nodes.active = image_node
+                        try:
+                            override = _get_view3d_override(
+                                scene,
+                                context.view_layer,
+                                low_obj,
+                                selected,
+                            )
+                            if override:
+                                with bpy.context.temp_override(**override):
+                                    bpy.ops.object.bake(type=cycles.bake_type)
+                            else:
+                                bpy.ops.object.bake(type=cycles.bake_type)
+                        finally:
+                            nodes.remove(image_node)
+                            for obj in temp_links:
+                                if obj.name in temp_collection.objects:
+                                    temp_collection.objects.unlink(obj)
+                        bake.use_clear = False
+
+                    _save_image(image, data.output_dir, f"{tex_set.name}{suffix}.png")
+
+                for obj, mats in used_high_polys.items():
+                    obj.data.materials.clear()
+                    for mat in mats:
+                        obj.data.materials.append(mat)
+        finally:
+            scene.render.engine = saved["engine"]
+            cycles.device = saved["device"]
+            view.view_transform = saved["view_transform"]
+            cycles.samples = saved["samples"]
+            cycles.diffuse_bounces = saved["diffuse_bounces"]
+            cycles.glossy_bounces = saved["glossy_bounces"]
+            cycles.transmission_bounces = saved["transmission_bounces"]
+            cycles.volume_bounces = saved["volume_bounces"]
+            cycles.transparent_max_bounces = saved["transparent_max_bounces"]
+            cycles.max_bounces = saved["max_bounces"]
+            bake.use_selected_to_active = saved["use_selected_to_active"]
+            bake.margin = saved["margin"]
+            bake.use_clear = saved["use_clear"]
+            bake.use_cage = saved["use_cage"]
+            bake.cage_object = saved["cage_object"]
+            bake.cage_extrusion = saved["cage_extrusion"]
+            bake.max_ray_distance = saved["max_ray_distance"]
+            cycles.bake_type = saved["bake_type"]
+            bake.normal_space = saved["normal_space"]
+
+        self.report({"INFO"}, "Bake All finished")
         return {"FINISHED"}
 
 
