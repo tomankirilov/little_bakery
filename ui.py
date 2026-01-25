@@ -3,6 +3,44 @@
 import bpy
 
 
+def _indent_column(layout):
+    row = layout.row()
+    row.separator()
+    return row.column(align=True)
+
+
+def _draw_resolution_row(layout, obj, prop_name):
+    row = layout.split(factor=0.4, align=True)
+    row.label(text="Resolution")
+    row.prop(obj, prop_name, text="")
+
+
+def _draw_custom_suffix(layout, obj, prefix, base):
+    flag_name = f"{prefix}{base}_custom_suffix"
+    value_name = f"{prefix}{base}_suffix"
+    layout.prop(obj, flag_name)
+    if getattr(obj, flag_name):
+        layout.prop(obj, value_name)
+
+
+def _draw_ao_options(layout, obj, prefix):
+    layout.prop(obj, f"{prefix}ao_local_only")
+    layout.prop(obj, f"{prefix}ao_samples")
+    layout.prop(obj, f"{prefix}ao_distance")
+    _draw_custom_suffix(layout, obj, prefix, "ao")
+
+
+def _draw_curvature_options(layout, obj, prefix):
+    layout.prop(obj, f"{prefix}curvature_exponent")
+    _draw_custom_suffix(layout, obj, prefix, "curvature")
+
+
+def _draw_thickness_options(layout, obj, prefix):
+    layout.prop(obj, f"{prefix}thickness_samples")
+    layout.prop(obj, f"{prefix}thickness_distance")
+    _draw_custom_suffix(layout, obj, prefix, "thickness")
+
+
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
@@ -61,9 +99,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         if data.show_global_settings:
             col = global_box.column(align=True)
             col.label(text="General")
-            row = col.row()
-            row.separator()
-            general_col = row.column(align=True)
+            general_col = _indent_column(col)
             row = general_col.split(factor=0.4, align=True)
             row.label(text="Render Device")
             row.prop(data, "render_device", text="")
@@ -72,74 +108,36 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             general_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
             col.separator()
             col.label(text="Bake Targets")
-            row = col.row()
-            row.separator()
-            bake_col = row.column(align=True)
-            row = bake_col.split(factor=0.4, align=True)
-            row.label(text="Resolution")
-            row.prop(data, "global_resolution", text="")
+            bake_col = _indent_column(col)
+            _draw_resolution_row(bake_col, data, "global_resolution")
             bake_col.prop(data, "global_bake_normals_ws")
             if data.global_bake_normals_ws:
-                row = bake_col.row()
-                row.separator()
-                normals_col = row.column(align=True)
-                normals_col.prop(data, "global_normals_custom_suffix")
-                if data.global_normals_custom_suffix:
-                    normals_col.prop(data, "global_normals_suffix")
+                normals_col = _indent_column(bake_col)
+                _draw_custom_suffix(normals_col, data, "global_", "normals")
             bake_col.prop(data, "global_bake_tangent_normal")
             if data.global_bake_tangent_normal:
-                row = bake_col.row()
-                row.separator()
-                tangent_col = row.column(align=True)
-                tangent_col.prop(data, "global_tangent_custom_suffix")
-                if data.global_tangent_custom_suffix:
-                    tangent_col.prop(data, "global_tangent_suffix")
+                tangent_col = _indent_column(bake_col)
+                _draw_custom_suffix(tangent_col, data, "global_", "tangent")
             bake_col.prop(data, "global_bake_ambient_occlusion")
             if data.global_bake_ambient_occlusion:
-                row = bake_col.row()
-                row.separator()
-                ao_col = row.column(align=True)
-                ao_col.prop(data, "global_ao_local_only")
-                ao_col.prop(data, "global_ao_samples")
-                ao_col.prop(data, "global_ao_distance")
-                ao_col.prop(data, "global_ao_custom_suffix")
-                if data.global_ao_custom_suffix:
-                    ao_col.prop(data, "global_ao_suffix")
+                ao_col = _indent_column(bake_col)
+                _draw_ao_options(ao_col, data, "global_")
             bake_col.prop(data, "global_bake_curvature")
             if data.global_bake_curvature:
-                row = bake_col.row()
-                row.separator()
-                curv_col = row.column(align=True)
-                curv_col.prop(data, "global_curvature_exponent")
-                curv_col.prop(data, "global_curvature_custom_suffix")
-                if data.global_curvature_custom_suffix:
-                    curv_col.prop(data, "global_curvature_suffix")
+                curv_col = _indent_column(bake_col)
+                _draw_curvature_options(curv_col, data, "global_")
             bake_col.prop(data, "global_bake_thickness")
             if data.global_bake_thickness:
-                row = bake_col.row()
-                row.separator()
-                thick_col = row.column(align=True)
-                thick_col.prop(data, "global_thickness_samples")
-                thick_col.prop(data, "global_thickness_distance")
-                thick_col.prop(data, "global_thickness_custom_suffix")
-                if data.global_thickness_custom_suffix:
-                    thick_col.prop(data, "global_thickness_suffix")
+                thick_col = _indent_column(bake_col)
+                _draw_thickness_options(thick_col, data, "global_")
             bake_col.prop(data, "global_bake_position")
             if data.global_bake_position:
-                row = bake_col.row()
-                row.separator()
-                pos_col = row.column(align=True)
-                pos_col.prop(data, "global_position_custom_suffix")
-                if data.global_position_custom_suffix:
-                    pos_col.prop(data, "global_position_suffix")
+                pos_col = _indent_column(bake_col)
+                _draw_custom_suffix(pos_col, data, "global_", "position")
             bake_col.prop(data, "global_bake_random_island")
             if data.global_bake_random_island:
-                row = bake_col.row()
-                row.separator()
-                rand_col = row.column(align=True)
-                rand_col.prop(data, "global_random_island_custom_suffix")
-                if data.global_random_island_custom_suffix:
-                    rand_col.prop(data, "global_random_island_suffix")
+                rand_col = _indent_column(bake_col)
+                _draw_custom_suffix(rand_col, data, "global_", "random_island")
 
         box = layout.box()
         header = box.row(align=True)
@@ -171,74 +169,36 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             tex_set = data.texture_sets[data.active_texture_index]
             box.prop(tex_set, "override_global_settings")
             if tex_set.override_global_settings:
-                row = box.row()
-                row.separator()
-                set_col = row.column(align=True)
-                row = set_col.split(factor=0.4, align=True)
-                row.label(text="Resolution")
-                row.prop(tex_set, "size", text="")
+                set_col = _indent_column(box)
+                _draw_resolution_row(set_col, tex_set, "size")
                 set_col.prop(tex_set, "bake_normals_ws")
                 if tex_set.bake_normals_ws:
-                    row = set_col.row()
-                    row.separator()
-                    normals_col = row.column(align=True)
-                    normals_col.prop(tex_set, "normals_custom_suffix")
-                    if tex_set.normals_custom_suffix:
-                        normals_col.prop(tex_set, "normals_suffix")
+                    normals_col = _indent_column(set_col)
+                    _draw_custom_suffix(normals_col, tex_set, "", "normals")
                 set_col.prop(tex_set, "bake_tangent_normal")
                 if tex_set.bake_tangent_normal:
-                    row = set_col.row()
-                    row.separator()
-                    tangent_col = row.column(align=True)
-                    tangent_col.prop(tex_set, "tangent_custom_suffix")
-                    if tex_set.tangent_custom_suffix:
-                        tangent_col.prop(tex_set, "tangent_suffix")
+                    tangent_col = _indent_column(set_col)
+                    _draw_custom_suffix(tangent_col, tex_set, "", "tangent")
                 set_col.prop(tex_set, "bake_ambient_occlusion")
                 if tex_set.bake_ambient_occlusion:
-                    row = set_col.row()
-                    row.separator()
-                    ao_col = row.column(align=True)
-                    ao_col.prop(tex_set, "ao_local_only")
-                    ao_col.prop(tex_set, "ao_samples")
-                    ao_col.prop(tex_set, "ao_distance")
-                    ao_col.prop(tex_set, "ao_custom_suffix")
-                    if tex_set.ao_custom_suffix:
-                        ao_col.prop(tex_set, "ao_suffix")
+                    ao_col = _indent_column(set_col)
+                    _draw_ao_options(ao_col, tex_set, "")
                 set_col.prop(tex_set, "bake_curvature")
                 if tex_set.bake_curvature:
-                    row = set_col.row()
-                    row.separator()
-                    curv_col = row.column(align=True)
-                    curv_col.prop(tex_set, "curvature_exponent")
-                    curv_col.prop(tex_set, "curvature_custom_suffix")
-                    if tex_set.curvature_custom_suffix:
-                        curv_col.prop(tex_set, "curvature_suffix")
+                    curv_col = _indent_column(set_col)
+                    _draw_curvature_options(curv_col, tex_set, "")
                 set_col.prop(tex_set, "bake_thickness")
                 if tex_set.bake_thickness:
-                    row = set_col.row()
-                    row.separator()
-                    thick_col = row.column(align=True)
-                    thick_col.prop(tex_set, "thickness_samples")
-                    thick_col.prop(tex_set, "thickness_distance")
-                    thick_col.prop(tex_set, "thickness_custom_suffix")
-                    if tex_set.thickness_custom_suffix:
-                        thick_col.prop(tex_set, "thickness_suffix")
+                    thick_col = _indent_column(set_col)
+                    _draw_thickness_options(thick_col, tex_set, "")
                 set_col.prop(tex_set, "bake_position")
                 if tex_set.bake_position:
-                    row = set_col.row()
-                    row.separator()
-                    pos_col = row.column(align=True)
-                    pos_col.prop(tex_set, "position_custom_suffix")
-                    if tex_set.position_custom_suffix:
-                        pos_col.prop(tex_set, "position_suffix")
+                    pos_col = _indent_column(set_col)
+                    _draw_custom_suffix(pos_col, tex_set, "", "position")
                 set_col.prop(tex_set, "bake_random_island")
                 if tex_set.bake_random_island:
-                    row = set_col.row()
-                    row.separator()
-                    rand_col = row.column(align=True)
-                    rand_col.prop(tex_set, "random_island_custom_suffix")
-                    if tex_set.random_island_custom_suffix:
-                        rand_col.prop(tex_set, "random_island_suffix")
+                    rand_col = _indent_column(set_col)
+                    _draw_custom_suffix(rand_col, tex_set, "", "random_island")
 
             low_box = layout.box()
             header = low_box.row(align=True)

@@ -10,6 +10,14 @@ _HIGH_MATERIAL_NAME = "_dummy_baker_highpoly_material"
 _HIGH_MATERIAL_NODE_NAME = "_baker_highpoly_material"
 _BAKE_MODE_INPUT_INDEX = 0
 _TEMP_COLLECTION_NAME = "DummyBake_Temp"
+_BAKE_MODE_MAP = {
+    "normals_ws": "normalws",
+    "ambient_occlusion": "ambient_occlusion",
+    "curvature": "curvature",
+    "thickness": "thickness",
+    "position": "position",
+    "random_island": "random_island",
+}
 
 
 def _load_highpoly_material():
@@ -123,8 +131,7 @@ def _ensure_low_material(obj):
     return material
 
 
-def _set_selection(scene, objects, active=None):
-    view_layer = bpy.context.view_layer
+def _set_selection(scene, view_layer, objects, active=None):
     for obj in view_layer.objects:
         obj.select_set(False)
 
@@ -223,6 +230,75 @@ def _effective_settings(data, tex_set):
         "position_suffix": data.global_position_suffix,
         "random_island_suffix": data.global_random_island_suffix,
     }
+
+
+def _capture_scene_settings(scene):
+    cycles = scene.cycles
+    bake = scene.render.bake
+    view = scene.view_settings
+    return {
+        "engine": scene.render.engine,
+        "device": cycles.device,
+        "view_transform": view.view_transform,
+        "samples": cycles.samples,
+        "diffuse_bounces": cycles.diffuse_bounces,
+        "glossy_bounces": cycles.glossy_bounces,
+        "transmission_bounces": cycles.transmission_bounces,
+        "volume_bounces": cycles.volume_bounces,
+        "transparent_max_bounces": cycles.transparent_max_bounces,
+        "max_bounces": cycles.max_bounces,
+        "use_selected_to_active": bake.use_selected_to_active,
+        "margin": bake.margin,
+        "use_clear": bake.use_clear,
+        "use_cage": bake.use_cage,
+        "cage_object": bake.cage_object,
+        "cage_extrusion": bake.cage_extrusion,
+        "max_ray_distance": bake.max_ray_distance,
+        "bake_type": cycles.bake_type,
+        "normal_space": bake.normal_space,
+    }
+
+
+def _apply_scene_settings(scene, data):
+    cycles = scene.cycles
+    bake = scene.render.bake
+    view = scene.view_settings
+    scene.render.engine = "CYCLES"
+    cycles.device = data.render_device
+    view.view_transform = "Standard"
+    cycles.diffuse_bounces = 0
+    cycles.glossy_bounces = 0
+    cycles.transmission_bounces = 0
+    cycles.volume_bounces = 0
+    cycles.transparent_max_bounces = 0
+    cycles.max_bounces = 0
+    bake.margin = 0
+    cycles.samples = data.render_samples
+
+
+def _restore_scene_settings(scene, saved):
+    cycles = scene.cycles
+    bake = scene.render.bake
+    view = scene.view_settings
+    scene.render.engine = saved["engine"]
+    cycles.device = saved["device"]
+    view.view_transform = saved["view_transform"]
+    cycles.samples = saved["samples"]
+    cycles.diffuse_bounces = saved["diffuse_bounces"]
+    cycles.glossy_bounces = saved["glossy_bounces"]
+    cycles.transmission_bounces = saved["transmission_bounces"]
+    cycles.volume_bounces = saved["volume_bounces"]
+    cycles.transparent_max_bounces = saved["transparent_max_bounces"]
+    cycles.max_bounces = saved["max_bounces"]
+    bake.use_selected_to_active = saved["use_selected_to_active"]
+    bake.margin = saved["margin"]
+    bake.use_clear = saved["use_clear"]
+    bake.use_cage = saved["use_cage"]
+    bake.cage_object = saved["cage_object"]
+    bake.cage_extrusion = saved["cage_extrusion"]
+    bake.max_ray_distance = saved["max_ray_distance"]
+    cycles.bake_type = saved["bake_type"]
+    bake.normal_space = saved["normal_space"]
 
 
 class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
@@ -458,42 +534,11 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
         scene = context.scene
         cycles = scene.cycles
         bake = scene.render.bake
-        view = scene.view_settings
+        view_layer = context.view_layer
 
-        saved = {
-            "engine": scene.render.engine,
-            "device": cycles.device,
-            "view_transform": view.view_transform,
-            "samples": cycles.samples,
-            "diffuse_bounces": cycles.diffuse_bounces,
-            "glossy_bounces": cycles.glossy_bounces,
-            "transmission_bounces": cycles.transmission_bounces,
-            "volume_bounces": cycles.volume_bounces,
-            "transparent_max_bounces": cycles.transparent_max_bounces,
-            "max_bounces": cycles.max_bounces,
-            "use_selected_to_active": bake.use_selected_to_active,
-            "margin": bake.margin,
-            "use_clear": bake.use_clear,
-            "use_cage": bake.use_cage,
-            "cage_object": bake.cage_object,
-            "cage_extrusion": bake.cage_extrusion,
-            "max_ray_distance": bake.max_ray_distance,
-            "bake_type": cycles.bake_type,
-            "normal_space": bake.normal_space,
-        }
-
+        saved = _capture_scene_settings(scene)
         try:
-            scene.render.engine = "CYCLES"
-            cycles.device = data.render_device
-            view.view_transform = "Standard"
-            cycles.diffuse_bounces = 0
-            cycles.glossy_bounces = 0
-            cycles.transmission_bounces = 0
-            cycles.volume_bounces = 0
-            cycles.transparent_max_bounces = 0
-            cycles.max_bounces = 0
-            bake.margin = 0
-            cycles.samples = data.render_samples
+            _apply_scene_settings(scene, data)
 
             for tex_set in data.texture_sets:
                 settings = _effective_settings(data, tex_set)
@@ -526,14 +571,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                         bake.normal_space = "TANGENT"
                     else:
                         cycles.bake_type = "EMIT"
-                        mode = {
-                            "normals_ws": "normalws",
-                            "ambient_occlusion": "ambient_occlusion",
-                            "curvature": "curvature",
-                            "thickness": "thickness",
-                            "position": "position",
-                            "random_island": "random_island",
-                        }.get(target_name)
+                        mode = _BAKE_MODE_MAP.get(target_name)
                         if mode:
                             _set_highpoly_material_mode(material, mode)
                         _set_highpoly_material_settings(
@@ -564,6 +602,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
 
                         selected, temp_links, temp_collection = _set_selection(
                             scene,
+                            view_layer,
                             high_objs + [low_obj],
                             active=low_obj,
                         )
@@ -599,7 +638,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                         try:
                             override = _get_view3d_override(
                                 scene,
-                                context.view_layer,
+                                view_layer,
                                 low_obj,
                                 selected,
                             )
@@ -622,25 +661,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                     for mat in mats:
                         obj.data.materials.append(mat)
         finally:
-            scene.render.engine = saved["engine"]
-            cycles.device = saved["device"]
-            view.view_transform = saved["view_transform"]
-            cycles.samples = saved["samples"]
-            cycles.diffuse_bounces = saved["diffuse_bounces"]
-            cycles.glossy_bounces = saved["glossy_bounces"]
-            cycles.transmission_bounces = saved["transmission_bounces"]
-            cycles.volume_bounces = saved["volume_bounces"]
-            cycles.transparent_max_bounces = saved["transparent_max_bounces"]
-            cycles.max_bounces = saved["max_bounces"]
-            bake.use_selected_to_active = saved["use_selected_to_active"]
-            bake.margin = saved["margin"]
-            bake.use_clear = saved["use_clear"]
-            bake.use_cage = saved["use_cage"]
-            bake.cage_object = saved["cage_object"]
-            bake.cage_extrusion = saved["cage_extrusion"]
-            bake.max_ray_distance = saved["max_ray_distance"]
-            cycles.bake_type = saved["bake_type"]
-            bake.normal_space = saved["normal_space"]
+            _restore_scene_settings(scene, saved)
 
         self.report({"INFO"}, "Bake All finished")
         return {"FINISHED"}

@@ -26,10 +26,9 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
     low_polys: bpy.props.CollectionProperty(type=DummyBakeLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
-    show_set_settings: bpy.props.BoolProperty(name="Show Set Settings", default=False)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
     size: bpy.props.IntVectorProperty(
-        name="Size",
+        name="Resolution",
         size=2,
         default=(1024, 1024),
         min=1,
