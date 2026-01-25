@@ -81,6 +81,10 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         layout = self.layout
         data = context.scene.dummy_bake_data
 
+        row = layout.row(align=True)
+        row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
+        row.operator("wm.url_open", text="Tomanov Art").url = "https://tomanov.art/"
+
         bake_box = layout.box()
         col = bake_box.column(align=True)
         col.operator("dummybake.bake_all", text="Bake All")

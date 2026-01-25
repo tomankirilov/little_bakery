@@ -29,6 +29,9 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        row = layout.row(align=True)
+        row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
+        row.operator("wm.url_open", text="Tomanov Art").url = "https://tomanov.art/"
         layout.prop(self, "debug_logging")
 
 _modules = (properties, operators, ui)
