@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Dummy Bake Tools addon skeleton.
 
+import bpy
+
 bl_info = {
     "name": "Dummy Bake Tools",
     "author": "tomanov",
@@ -13,10 +15,27 @@ bl_info = {
 
 from . import operators, properties, ui
 
+_ADDON_ID = __name__
+
+
+class DummyBakePreferences(bpy.types.AddonPreferences):
+    bl_idname = _ADDON_ID
+
+    debug_logging: bpy.props.BoolProperty(
+        name="Debug Logging",
+        description="Print detailed bake progress to the console",
+        default=False,
+    )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "debug_logging")
+
 _modules = (properties, operators, ui)
 
 
 def register():
+    bpy.utils.register_class(DummyBakePreferences)
     for module in _modules:
         module.register()
 
@@ -24,6 +43,7 @@ def register():
 def unregister():
     for module in reversed(_modules):
         module.unregister()
+    bpy.utils.unregister_class(DummyBakePreferences)
 
 
 if __name__ == "__main__":

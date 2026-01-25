@@ -20,6 +20,40 @@ _BAKE_MODE_MAP = {
     "random_island": "random_island",
     "color_attribute": "color_attribute",
 }
+_TARGET_LABELS = {
+    "tangent_normal": "Tangent Space Normal",
+    "normals_ws": "Object Space Normal",
+    "ambient_occlusion": "Ambient Occlusion",
+    "curvature": "Curvature",
+    "thickness": "Thickness",
+    "position": "Position",
+    "color_attribute": "Color Attribute",
+    "random_island": "Random Island",
+}
+
+
+def _get_addon_prefs(context):
+    # Look up addon preferences for optional debug logging.
+    if context is None:
+        return None
+    prefs = getattr(context, "preferences", None)
+    if not prefs:
+        return None
+    addon = prefs.addons.get(__package__)
+    return addon.preferences if addon else None
+
+
+def _debug_log(context, message):
+    # Centralized debug logging toggle to avoid print spam when disabled.
+    prefs = _get_addon_prefs(context)
+    if prefs and getattr(prefs, "debug_logging", False):
+        print(f"DummyBake: {message}")
+
+
+def _progress(operator, context, message):
+    # Lightweight progress notification shown in Blender's status bar.
+    operator.report({"INFO"}, message)
+    _debug_log(context, message)
 
 
 def _load_highpoly_material():
@@ -190,6 +224,8 @@ def _clear_image(image):
 
 
 def _dilate_image(image, iterations):
+    # Expand colors into transparent pixels using a multi-source BFS so the
+    # padding comes from original opaque pixels instead of iterative smearing.
     width, height = image.size
     if iterations <= 0:
         return
@@ -249,7 +285,8 @@ def _dilate_image(image, iterations):
     image.update()
 
 
-def _save_image(image, output_dir, filename, settings, scene=None):
+def _save_image(image, output_dir, filename, settings, scene=None, context=None):
+    # Use render image settings because Image doesn't expose color format fields.
     scene = scene or bpy.context.scene
     output_dir = bpy.path.abspath(output_dir or "//")
     os.makedirs(output_dir, exist_ok=True)
@@ -275,6 +312,7 @@ def _save_image(image, output_dir, filename, settings, scene=None):
         image_settings.color_mode = saved_settings["color_mode"]
         image_settings.color_depth = saved_settings["color_depth"]
         image_settings.compression = saved_settings["compression"]
+    _debug_log(context, f"Saved image to {filepath}")
 
 
 def _bake_targets_from_settings(settings):
@@ -291,6 +329,7 @@ def _bake_targets_from_settings(settings):
 
 
 def _msaa_factor(value):
+    # Parse UI enum values into a numeric scale factor.
     try:
         return max(1, int(value))
     except (TypeError, ValueError):
@@ -298,6 +337,8 @@ def _msaa_factor(value):
 
 
 def _copy_color_attribute_material(base_material, attribute_name, cache, created_materials, created_node_groups):
+    # Create a per-attribute material + node-group copy so each high poly can
+    # point to a different color attribute without stomping shared state.
     key = attribute_name or ""
     if key in cache:
         return cache[key]
@@ -322,7 +363,36 @@ def _copy_color_attribute_material(base_material, attribute_name, cache, created
     return material_copy
 
 
+def _prepare_bake_target(target_name, settings, material, cycles, bake):
+    # Configure Cycles bake settings and the shared material for the target.
+    if target_name == "tangent_normal":
+        cycles.samples = 1
+        cycles.bake_type = "NORMAL"
+        bake.normal_space = "TANGENT"
+        return False
+
+    cycles.bake_type = "EMIT"
+    if target_name == "ambient_occlusion":
+        cycles.samples = settings["ao_render_samples"]
+        _set_highpoly_material_mode(material, "ambient_occlusion")
+        return True
+    if target_name == "thickness":
+        cycles.samples = settings["thickness_render_samples"]
+        _set_highpoly_material_mode(material, "thickness")
+        return True
+    if target_name == "color_attribute":
+        cycles.samples = 1
+        return False
+
+    cycles.samples = 1
+    mode = _BAKE_MODE_MAP.get(target_name)
+    if mode:
+        _set_highpoly_material_mode(material, mode)
+    return True
+
+
 def _effective_settings(data, tex_set):
+    # Merge texture-set overrides with global defaults into a flat settings dict.
     if tex_set.override_global_settings:
         return {
             "resolution": tex_set.size,
@@ -713,6 +783,7 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
 
 
 def _bake_texture_sets(operator, context, texture_sets, label):
+    # Main bake entry point used by both "Bake All" and "Bake Selected Set".
     data = context.scene.dummy_bake_data
     material = _load_highpoly_material()
     if not material:
@@ -728,13 +799,26 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     created_materials = []
     created_node_groups = []
     start_time = time.perf_counter()
+    _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
+
+    # Pre-calculate total target count for a simple progress bar.
+    total_targets = 0
+    for tex_set in texture_sets:
+        settings = _effective_settings(data, tex_set)
+        total_targets += sum(1 for _, enabled, _ in _bake_targets_from_settings(settings) if enabled)
+    progress_value = 0
+    progress_total = max(1, total_targets)
+    wm = getattr(context, "window_manager", None)
+    if wm:
+        wm.progress_begin(0, progress_total)
     try:
         _apply_scene_settings(scene, data)
 
         for tex_set in texture_sets:
             settings = _effective_settings(data, tex_set)
-            resolution = settings["resolution"]
+            _debug_log(context, f"Preparing texture set '{tex_set.name}'")
             if not tex_set.low_polys:
+                _debug_log(context, f"Skipping texture set '{tex_set.name}' (no low polys)")
                 continue
 
             saved_materials = {}
@@ -751,6 +835,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         saved_materials[high_obj] = _capture_materials(high_obj)
                     _ensure_material_slot(high_obj, material)
 
+            # MSAA is implemented by baking at a higher resolution and downscaling.
             scale_factor = _msaa_factor(settings["msaa"])
             target_resolution = settings["resolution"]
             bake_resolution = (
@@ -761,31 +846,24 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if not enabled:
                     continue
 
+                progress_value += 1
+                if wm:
+                    wm.progress_update(progress_value)
+                target_label = _TARGET_LABELS.get(target_name, target_name)
+                _progress(operator, context, f"{label}: {tex_set.name} - {target_label}")
+
                 image = _make_image(f"{tex_set.name}{suffix}", bake_resolution[0], bake_resolution[1])
                 _clear_image(image)
                 bake.use_clear = False
 
-                if target_name == "tangent_normal":
-                    cycles.samples = 1
-                    cycles.bake_type = "NORMAL"
-                    bake.normal_space = "TANGENT"
-                elif target_name == "ambient_occlusion":
-                    cycles.samples = settings["ao_render_samples"]
-                    cycles.bake_type = "EMIT"
-                    _set_highpoly_material_mode(material, "ambient_occlusion")
-                elif target_name == "thickness":
-                    cycles.samples = settings["thickness_render_samples"]
-                    cycles.bake_type = "EMIT"
-                    _set_highpoly_material_mode(material, "thickness")
-                elif target_name == "color_attribute":
-                    cycles.samples = 1
-                    cycles.bake_type = "EMIT"
-                else:
-                    cycles.samples = 1
-                    cycles.bake_type = "EMIT"
-                    mode = _BAKE_MODE_MAP.get(target_name)
-                    if mode:
-                        _set_highpoly_material_mode(material, mode)
+                needs_material_settings = _prepare_bake_target(
+                    target_name,
+                    settings,
+                    material,
+                    cycles,
+                    bake,
+                )
+                if needs_material_settings:
                     _set_highpoly_material_settings(
                         material,
                         settings["ao_samples"],
@@ -807,6 +885,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     ]
                     high_objs = [item.object for item in high_items]
                     if target_name == "color_attribute":
+                        # Override the high poly material per-object to inject the attribute name.
                         for item in high_items:
                             attr_name = (item.color_attribute or "").strip()
                             if not attr_name:
@@ -819,6 +898,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                 created_node_groups,
                             )
                             _ensure_material_slot(item.object, mat)
+                    _debug_log(
+                        context,
+                        f"Baking {target_label} for low poly '{low_obj.name}' "
+                        f"with {len(high_objs)} high poly object(s)",
+                    )
                     for obj in high_objs + [low_obj]:
                         obj.hide_viewport = False
                         obj.hide_render = False
@@ -880,14 +964,22 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                 temp_collection.objects.unlink(obj)
                     bake.use_clear = False
                     if target_name == "color_attribute":
+                        # Restore the shared material after the color-attribute bake.
                         for item in high_items:
                             _ensure_material_slot(item.object, material)
 
+                # Dilation runs before downscaling so the padding survives MSAA.
                 dilation = settings["dilation"] * scale_factor
                 if dilation > 0:
                     _dilate_image(image, dilation)
+                    _debug_log(context, f"Applied dilation of {dilation}px")
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
+                    _debug_log(
+                        context,
+                        f"Downscaled from {bake_resolution[0]}x{bake_resolution[1]} "
+                        f"to {target_resolution[0]}x{target_resolution[1]}",
+                    )
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,
@@ -895,11 +987,14 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     f"{tex_set.name}{suffix}.{extension}",
                     settings,
                     scene=scene,
+                    context=context,
                 )
 
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
     finally:
+        if wm:
+            wm.progress_end()
         _restore_scene_settings(scene, saved)
         for mat in created_materials:
             try:

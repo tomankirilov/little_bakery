@@ -195,6 +195,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             emboss=False,
         )
         header.label(text="Texture Sets")
+        tex_set = None
+        if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
+            tex_set = data.texture_sets[data.active_texture_index]
         if data.show_texture_sets:
             row = box.row()
             row.template_list(
@@ -212,8 +215,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
             clear_op.list_kind = "TEXTURE"
 
-            if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
-                tex_set = data.texture_sets[data.active_texture_index]
+            if tex_set:
                 box.prop(tex_set, "override_global_settings")
                 if tex_set.override_global_settings:
                     set_col = _indent_column(box)
@@ -252,83 +254,86 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         rand_col = _indent_column(set_col)
                         _draw_custom_suffix(rand_col, tex_set, "", "random_island")
 
-            low_box = layout.box()
-            header = low_box.row(align=True)
-            header.prop(
-                data,
-                "show_low_polys",
-                icon="TRIA_DOWN" if data.show_low_polys else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Low Poly")
-            if data.show_low_polys:
-                row = low_box.row()
-                row.template_list(
-                    "DUMMYBAKE_UL_low_polys",
-                    "",
-                    tex_set,
-                    "low_polys",
-                    tex_set,
-                    "active_low_index",
-                    rows=2,
-                )
-                col = row.column(align=True)
-                col.operator("dummybake.low_poly_add", icon="ADD", text="")
-                col.operator("dummybake.low_poly_remove", icon="REMOVE", text="")
-                clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
-                clear_op.list_kind = "LOW"
+        if not tex_set:
+            return
 
-                if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
-                    low_item = tex_set.low_polys[tex_set.active_low_index]
-                    low_box.label(text="Low Poly Settings")
-                    low_box.prop(low_item, "use_cage")
-                    if low_item.use_cage:
-                        low_box.prop_search(
-                            low_item,
-                            "cage_object",
-                            context.scene,
-                            "objects",
-                            text="",
-                            icon="VIEWZOOM",
-                        )
-                    low_box.prop(low_item, "override_global_settings")
-                    if low_item.override_global_settings:
-                        cage_col = low_box.column(align=True)
-                        cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
-                        cage_col.prop(low_item, "cage_max_ray_distance")
+        low_box = layout.box()
+        header = low_box.row(align=True)
+        header.prop(
+            data,
+            "show_low_polys",
+            icon="TRIA_DOWN" if data.show_low_polys else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Low Poly")
+        if data.show_low_polys:
+            row = low_box.row()
+            row.template_list(
+                "DUMMYBAKE_UL_low_polys",
+                "",
+                tex_set,
+                "low_polys",
+                tex_set,
+                "active_low_index",
+                rows=2,
+            )
+            col = row.column(align=True)
+            col.operator("dummybake.low_poly_add", icon="ADD", text="")
+            col.operator("dummybake.low_poly_remove", icon="REMOVE", text="")
+            clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+            clear_op.list_kind = "LOW"
 
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
                 low_item = tex_set.low_polys[tex_set.active_low_index]
-                high_box = layout.box()
-                high_header = high_box.row(align=True)
-                high_header.prop(
-                    data,
-                    "show_high_polys",
-                    icon="TRIA_DOWN" if data.show_high_polys else "TRIA_RIGHT",
-                    icon_only=True,
-                    emboss=False,
-                )
-                high_header.label(text="High Poly")
-                if data.show_high_polys:
-                    row = high_box.row()
-                    row.template_list(
-                        "DUMMYBAKE_UL_high_polys",
-                        "",
+                low_box.label(text="Low Poly Settings")
+                low_box.prop(low_item, "use_cage")
+                if low_item.use_cage:
+                    low_box.prop_search(
                         low_item,
-                        "high_polys",
-                        low_item,
-                        "active_high_index",
-                        rows=2,
+                        "cage_object",
+                        context.scene,
+                        "objects",
+                        text="",
+                        icon="VIEWZOOM",
                     )
-                    col = row.column(align=True)
-                    col.operator("dummybake.high_poly_add", icon="ADD", text="")
-                    col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
-                    clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
-                    clear_op.list_kind = "HIGH"
-                    if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
-                        high_item = low_item.high_polys[low_item.active_high_index]
-                        high_box.prop(high_item, "color_attribute")
+                low_box.prop(low_item, "override_global_settings")
+                if low_item.override_global_settings:
+                    cage_col = low_box.column(align=True)
+                    cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
+                    cage_col.prop(low_item, "cage_max_ray_distance")
+
+        if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
+            low_item = tex_set.low_polys[tex_set.active_low_index]
+            high_box = layout.box()
+            high_header = high_box.row(align=True)
+            high_header.prop(
+                data,
+                "show_high_polys",
+                icon="TRIA_DOWN" if data.show_high_polys else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            high_header.label(text="High Poly")
+            if data.show_high_polys:
+                row = high_box.row()
+                row.template_list(
+                    "DUMMYBAKE_UL_high_polys",
+                    "",
+                    low_item,
+                    "high_polys",
+                    low_item,
+                    "active_high_index",
+                    rows=2,
+                )
+                col = row.column(align=True)
+                col.operator("dummybake.high_poly_add", icon="ADD", text="")
+                col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
+                clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+                clear_op.list_kind = "HIGH"
+                if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
+                    high_item = low_item.high_polys[low_item.active_high_index]
+                    high_box.prop(high_item, "color_attribute")
 
 
 classes = (
