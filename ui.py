@@ -204,6 +204,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 "texture_sets",
                 data,
                 "active_texture_index",
+                rows=2,
             )
             col = row.column(align=True)
             col.operator("dummybake.texture_set_add", icon="ADD", text="")
@@ -270,6 +271,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     "low_polys",
                     tex_set,
                     "active_low_index",
+                    rows=2,
                 )
                 col = row.column(align=True)
                 col.operator("dummybake.low_poly_add", icon="ADD", text="")
@@ -317,6 +319,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         "high_polys",
                         low_item,
                         "active_high_index",
+                        rows=2,
                     )
                     col = row.column(align=True)
                     col.operator("dummybake.high_poly_add", icon="ADD", text="")
