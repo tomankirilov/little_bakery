@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import os
+import time
 
 import bpy
 
@@ -187,6 +188,66 @@ def _clear_image(image):
     image.update()
 
 
+def _dilate_image(image, iterations):
+    width, height = image.size
+    if iterations <= 0:
+        return
+
+    from collections import deque
+
+    pixels = list(image.pixels)
+    total = width * height
+    owner = [-1] * total
+    dist = [-1] * total
+    queue = deque()
+
+    for idx in range(total):
+        if pixels[idx * 4 + 3] > 0.0:
+            owner[idx] = idx
+            dist[idx] = 0
+            queue.append(idx)
+
+    if not queue:
+        return
+
+    neighbors = (
+        (-1, -1), (0, -1), (1, -1),
+        (-1, 0),           (1, 0),
+        (-1, 1),  (0, 1),  (1, 1),
+    )
+
+    while queue:
+        idx = queue.popleft()
+        current_dist = dist[idx]
+        if current_dist >= iterations:
+            continue
+        x = idx % width
+        y = idx // width
+        for ox, oy in neighbors:
+            nx = x + ox
+            ny = y + oy
+            if nx < 0 or nx >= width or ny < 0 or ny >= height:
+                continue
+            nidx = ny * width + nx
+            if owner[nidx] != -1:
+                continue
+            owner[nidx] = owner[idx]
+            dist[nidx] = current_dist + 1
+            queue.append(nidx)
+
+    for idx in range(total):
+        if owner[idx] == -1:
+            continue
+        dst_offset = idx * 4
+        if pixels[dst_offset + 3] > 0.0:
+            continue
+        src_offset = owner[idx] * 4
+        pixels[dst_offset:dst_offset + 4] = pixels[src_offset:src_offset + 4]
+
+    image.pixels.foreach_set(pixels)
+    image.update()
+
+
 def _save_image(image, output_dir, filename):
     output_dir = bpy.path.abspath(output_dir or "//")
     os.makedirs(output_dir, exist_ok=True)
@@ -219,10 +280,12 @@ def _effective_settings(data, tex_set):
             "position": tex_set.bake_position,
             "random_island": tex_set.bake_random_island,
             "ao_samples": tex_set.ao_samples,
+            "ao_render_samples": tex_set.ao_render_samples,
             "ao_local_only": tex_set.ao_local_only,
             "ao_distance": tex_set.ao_distance,
             "curvature_exponent": tex_set.curvature_exponent,
             "thickness_samples": tex_set.thickness_samples,
+            "thickness_render_samples": tex_set.thickness_render_samples,
             "thickness_distance": tex_set.thickness_distance,
             "normals_suffix": tex_set.normals_suffix,
             "tangent_suffix": tex_set.tangent_suffix,
@@ -231,6 +294,7 @@ def _effective_settings(data, tex_set):
             "thickness_suffix": tex_set.thickness_suffix,
             "position_suffix": tex_set.position_suffix,
             "random_island_suffix": tex_set.random_island_suffix,
+            "dilation": data.global_dilation,
         }
     return {
         "resolution": data.global_resolution,
@@ -242,10 +306,12 @@ def _effective_settings(data, tex_set):
         "position": data.global_bake_position,
         "random_island": data.global_bake_random_island,
         "ao_samples": data.global_ao_samples,
+        "ao_render_samples": data.global_ao_render_samples,
         "ao_local_only": data.global_ao_local_only,
         "ao_distance": data.global_ao_distance,
         "curvature_exponent": data.global_curvature_exponent,
         "thickness_samples": data.global_thickness_samples,
+        "thickness_render_samples": data.global_thickness_render_samples,
         "thickness_distance": data.global_thickness_distance,
         "normals_suffix": data.global_normals_suffix,
         "tangent_suffix": data.global_tangent_suffix,
@@ -254,6 +320,7 @@ def _effective_settings(data, tex_set):
         "thickness_suffix": data.global_thickness_suffix,
         "position_suffix": data.global_position_suffix,
         "random_island_suffix": data.global_random_island_suffix,
+        "dilation": data.global_dilation,
     }
 
 
@@ -298,7 +365,7 @@ def _apply_scene_settings(scene, data):
     cycles.transparent_max_bounces = 0
     cycles.max_bounces = 0
     bake.margin = 0
-    cycles.samples = data.render_samples
+    cycles.samples = 1
 
 
 def _restore_scene_settings(scene, saved):
@@ -562,6 +629,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
         view_layer = context.view_layer
 
         saved = _capture_scene_settings(scene)
+        start_time = time.perf_counter()
         try:
             _apply_scene_settings(scene, data)
 
@@ -593,9 +661,19 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                     bake.use_clear = False
 
                     if target_name == "tangent_normal":
+                        cycles.samples = 1
                         cycles.bake_type = "NORMAL"
                         bake.normal_space = "TANGENT"
+                    elif target_name == "ambient_occlusion":
+                        cycles.samples = settings["ao_render_samples"]
+                        cycles.bake_type = "EMIT"
+                        _set_highpoly_material_mode(material, "ambient_occlusion")
+                    elif target_name == "thickness":
+                        cycles.samples = settings["thickness_render_samples"]
+                        cycles.bake_type = "EMIT"
+                        _set_highpoly_material_mode(material, "thickness")
                     else:
+                        cycles.samples = 1
                         cycles.bake_type = "EMIT"
                         mode = _BAKE_MODE_MAP.get(target_name)
                         if mode:
@@ -680,6 +758,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                                     temp_collection.objects.unlink(obj)
                         bake.use_clear = False
 
+                    if settings["dilation"] > 0:
+                        _dilate_image(image, settings["dilation"])
                     _save_image(image, data.output_dir, f"{tex_set.name}{suffix}.png")
 
                 for obj, mats in saved_materials.items():
@@ -687,7 +767,10 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
         finally:
             _restore_scene_settings(scene, saved)
 
-        self.report({"INFO"}, "Bake All finished")
+        elapsed = time.perf_counter() - start_time
+        message = f"Bake All finished in {elapsed:.2f}s"
+        print(f"DummyBake: {message}")
+        self.report({"INFO"}, message)
         return {"FINISHED"}
 
 

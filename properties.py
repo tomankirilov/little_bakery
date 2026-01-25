@@ -41,7 +41,8 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     tangent_suffix: bpy.props.StringProperty(name="Suffix", default="_tangent_normal")
     bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
-    ao_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
+    ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
     ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
@@ -51,7 +52,8 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     curvature_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     curvature_suffix: bpy.props.StringProperty(name="Suffix", default="_curvature")
     bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
-    thickness_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
+    thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     thickness_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
@@ -78,11 +80,6 @@ class DummyBakeData(bpy.types.PropertyGroup):
         ],
         default="GPU",
     )
-    render_samples: bpy.props.IntProperty(
-        name="Render Samples",
-        default=1024,
-        min=1,
-    )
     output_dir: bpy.props.StringProperty(
         name="Output",
         subtype="DIR_PATH",
@@ -102,7 +99,8 @@ class DummyBakeData(bpy.types.PropertyGroup):
     global_tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_tangent_suffix: bpy.props.StringProperty(name="Suffix", default="_tangent_normal")
     global_bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
-    global_ao_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    global_ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
+    global_ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     global_ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
     global_ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     global_ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
@@ -112,7 +110,8 @@ class DummyBakeData(bpy.types.PropertyGroup):
     global_curvature_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_curvature_suffix: bpy.props.StringProperty(name="Suffix", default="_curvature")
     global_bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
-    global_thickness_samples: bpy.props.IntProperty(name="Samples", default=32, min=1)
+    global_thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
+    global_thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     global_thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     global_thickness_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
     global_thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
@@ -128,6 +127,7 @@ class DummyBakeData(bpy.types.PropertyGroup):
         default=0.0,
         min=0.0,
     )
+    global_dilation: bpy.props.IntProperty(name="Dilation (px)", default=4, min=0)
 
 
 classes = (

@@ -26,6 +26,7 @@ def _draw_custom_suffix(layout, obj, prefix, base):
 def _draw_ao_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}ao_local_only")
     layout.prop(obj, f"{prefix}ao_samples")
+    layout.prop(obj, f"{prefix}ao_render_samples")
     layout.prop(obj, f"{prefix}ao_distance")
     _draw_custom_suffix(layout, obj, prefix, "ao")
 
@@ -37,6 +38,7 @@ def _draw_curvature_options(layout, obj, prefix):
 
 def _draw_thickness_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}thickness_samples")
+    layout.prop(obj, f"{prefix}thickness_render_samples")
     layout.prop(obj, f"{prefix}thickness_distance")
     _draw_custom_suffix(layout, obj, prefix, "thickness")
 
@@ -103,9 +105,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row = general_col.split(factor=0.4, align=True)
             row.label(text="Render Device")
             row.prop(data, "render_device", text="")
-            general_col.prop(data, "render_samples", text="Render Samples")
             general_col.prop(data, "global_extrusion")
             general_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+            general_col.prop(data, "global_dilation")
             col.separator()
             col.label(text="Bake Targets")
             bake_col = _indent_column(col)
