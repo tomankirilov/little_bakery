@@ -131,6 +131,24 @@ def _ensure_low_material(obj):
     return material
 
 
+def _capture_materials(obj):
+    data = getattr(obj, "data", None)
+    if not data or not hasattr(data, "materials"):
+        return None
+    return list(data.materials)
+
+
+def _restore_materials(obj, materials):
+    if materials is None:
+        return
+    data = getattr(obj, "data", None)
+    if not data or not hasattr(data, "materials"):
+        return
+    data.materials.clear()
+    for mat in materials:
+        data.materials.append(mat)
+
+
 def _set_selection(scene, view_layer, objects, active=None):
     for obj in view_layer.objects:
         obj.select_set(False)
@@ -546,18 +564,18 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                 if not tex_set.low_polys:
                     continue
 
-                used_high_polys = {}
+                saved_materials = {}
                 for low_item in tex_set.low_polys:
                     low_obj = low_item.object
-                    if not low_obj or low_obj.type != "MESH":
-                        continue
+                    if low_obj and low_obj.type == "MESH":
+                        saved_materials.setdefault(low_obj, _capture_materials(low_obj))
                     for high_item in low_item.high_polys:
                         high_obj = high_item.object
                         if not high_obj or high_obj.type != "MESH":
                             continue
-                        if high_obj not in used_high_polys:
-                            used_high_polys[high_obj] = list(high_obj.data.materials)
-                            _ensure_material_slot(high_obj, material)
+                        if high_obj not in saved_materials:
+                            saved_materials[high_obj] = _capture_materials(high_obj)
+                        _ensure_material_slot(high_obj, material)
 
                 for target_name, enabled, suffix in _bake_targets_from_settings(settings):
                     if not enabled:
@@ -656,10 +674,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
 
                     _save_image(image, data.output_dir, f"{tex_set.name}{suffix}.png")
 
-                for obj, mats in used_high_polys.items():
-                    obj.data.materials.clear()
-                    for mat in mats:
-                        obj.data.materials.append(mat)
+                for obj, mats in saved_materials.items():
+                    _restore_materials(obj, mats)
         finally:
             _restore_scene_settings(scene, saved)
 
