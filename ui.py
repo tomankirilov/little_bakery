@@ -82,7 +82,6 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         data = context.scene.dummy_bake_data
 
         bake_box = layout.box()
-        bake_box.label(text="Bake")
         col = bake_box.column(align=True)
         col.operator("dummybake.bake_all", text="Bake All")
         col.operator("dummybake.bake_selected_set", text="Bake Selected Set")
@@ -161,9 +160,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         header.label(text="Output")
         if data.show_global_settings:
             output_col = _indent_column(sections)
-            output_col.prop(data, "output_dir", text="Output")
             row = output_col.split(factor=0.4, align=True)
-            row.label(text="File Format")
+            row.label(text="Output")
+            row.prop(data, "output_dir", text="")
+            row = output_col.split(factor=0.4, align=True)
+            row.label(text="Format")
             row.prop(data, "output_format", text="")
             row = output_col.split(factor=0.4, align=True)
             row.label(text="Color")
@@ -202,40 +203,40 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
             clear_op.list_kind = "TEXTURE"
 
-        if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
-            tex_set = data.texture_sets[data.active_texture_index]
-            box.prop(tex_set, "override_global_settings")
-            if tex_set.override_global_settings:
-                set_col = _indent_column(box)
-                _draw_resolution_row(set_col, tex_set, "size")
-                set_col.prop(tex_set, "bake_tangent_normal")
-                if tex_set.bake_tangent_normal:
-                    tangent_col = _indent_column(set_col)
-                    _draw_custom_suffix(tangent_col, tex_set, "", "tangent")
-                set_col.prop(tex_set, "bake_normals_ws")
-                if tex_set.bake_normals_ws:
-                    normals_col = _indent_column(set_col)
-                    _draw_custom_suffix(normals_col, tex_set, "", "normals")
-                set_col.prop(tex_set, "bake_ambient_occlusion")
-                if tex_set.bake_ambient_occlusion:
-                    ao_col = _indent_column(set_col)
-                    _draw_ao_options(ao_col, tex_set, "")
-                set_col.prop(tex_set, "bake_curvature")
-                if tex_set.bake_curvature:
-                    curv_col = _indent_column(set_col)
-                    _draw_curvature_options(curv_col, tex_set, "")
-                set_col.prop(tex_set, "bake_thickness")
-                if tex_set.bake_thickness:
-                    thick_col = _indent_column(set_col)
-                    _draw_thickness_options(thick_col, tex_set, "")
-                set_col.prop(tex_set, "bake_position")
-                if tex_set.bake_position:
-                    pos_col = _indent_column(set_col)
-                    _draw_custom_suffix(pos_col, tex_set, "", "position")
-                set_col.prop(tex_set, "bake_random_island")
-                if tex_set.bake_random_island:
-                    rand_col = _indent_column(set_col)
-                    _draw_custom_suffix(rand_col, tex_set, "", "random_island")
+            if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
+                tex_set = data.texture_sets[data.active_texture_index]
+                box.prop(tex_set, "override_global_settings")
+                if tex_set.override_global_settings:
+                    set_col = _indent_column(box)
+                    _draw_resolution_row(set_col, tex_set, "size")
+                    set_col.prop(tex_set, "bake_tangent_normal")
+                    if tex_set.bake_tangent_normal:
+                        tangent_col = _indent_column(set_col)
+                        _draw_custom_suffix(tangent_col, tex_set, "", "tangent")
+                    set_col.prop(tex_set, "bake_normals_ws")
+                    if tex_set.bake_normals_ws:
+                        normals_col = _indent_column(set_col)
+                        _draw_custom_suffix(normals_col, tex_set, "", "normals")
+                    set_col.prop(tex_set, "bake_ambient_occlusion")
+                    if tex_set.bake_ambient_occlusion:
+                        ao_col = _indent_column(set_col)
+                        _draw_ao_options(ao_col, tex_set, "")
+                    set_col.prop(tex_set, "bake_curvature")
+                    if tex_set.bake_curvature:
+                        curv_col = _indent_column(set_col)
+                        _draw_curvature_options(curv_col, tex_set, "")
+                    set_col.prop(tex_set, "bake_thickness")
+                    if tex_set.bake_thickness:
+                        thick_col = _indent_column(set_col)
+                        _draw_thickness_options(thick_col, tex_set, "")
+                    set_col.prop(tex_set, "bake_position")
+                    if tex_set.bake_position:
+                        pos_col = _indent_column(set_col)
+                        _draw_custom_suffix(pos_col, tex_set, "", "position")
+                    set_col.prop(tex_set, "bake_random_island")
+                    if tex_set.bake_random_island:
+                        rand_col = _indent_column(set_col)
+                        _draw_custom_suffix(rand_col, tex_set, "", "random_island")
 
             low_box = layout.box()
             header = low_box.row(align=True)
@@ -282,30 +283,33 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
                         cage_col.prop(low_item, "cage_max_ray_distance")
 
-                    high_header = low_box.row(align=True)
-                    high_header.prop(
-                        data,
-                        "show_high_polys",
-                        icon="TRIA_DOWN" if data.show_high_polys else "TRIA_RIGHT",
-                        icon_only=True,
-                        emboss=False,
+            if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
+                low_item = tex_set.low_polys[tex_set.active_low_index]
+                high_box = layout.box()
+                high_header = high_box.row(align=True)
+                high_header.prop(
+                    data,
+                    "show_high_polys",
+                    icon="TRIA_DOWN" if data.show_high_polys else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                high_header.label(text="High Poly")
+                if data.show_high_polys:
+                    row = high_box.row()
+                    row.template_list(
+                        "DUMMYBAKE_UL_high_polys",
+                        "",
+                        low_item,
+                        "high_polys",
+                        low_item,
+                        "active_high_index",
                     )
-                    high_header.label(text="High Poly")
-                    if data.show_high_polys:
-                        row = low_box.row()
-                        row.template_list(
-                            "DUMMYBAKE_UL_high_polys",
-                            "",
-                            low_item,
-                            "high_polys",
-                            low_item,
-                            "active_high_index",
-                        )
-                        col = row.column(align=True)
-                        col.operator("dummybake.high_poly_add", icon="ADD", text="")
-                        col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
-                        clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
-                        clear_op.list_kind = "HIGH"
+                    col = row.column(align=True)
+                    col.operator("dummybake.high_poly_add", icon="ADD", text="")
+                    col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
+                    clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+                    clear_op.list_kind = "HIGH"
 
 
 classes = (

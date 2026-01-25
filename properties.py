@@ -98,7 +98,6 @@ class DummyBakeData(bpy.types.PropertyGroup):
     output_color_mode: bpy.props.EnumProperty(
         name="Color",
         items=[
-            ("BW", "BW", ""),
             ("RGB", "RGB", ""),
             ("RGBA", "RGBA", ""),
         ],
