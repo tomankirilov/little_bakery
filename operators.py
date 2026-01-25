@@ -177,7 +177,14 @@ def _set_selection(scene, view_layer, objects, active=None):
 def _make_image(name, width, height):
     image = bpy.data.images.new(name=name, width=width, height=height, alpha=True)
     image.generated_color = (0.0, 0.0, 0.0, 0.0)
+    image.alpha_mode = "STRAIGHT"
     return image
+
+
+def _clear_image(image):
+    pixel_count = image.size[0] * image.size[1] * 4
+    image.pixels.foreach_set([0.0] * pixel_count)
+    image.update()
 
 
 def _save_image(image, output_dir, filename):
@@ -582,7 +589,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
                         continue
 
                     image = _make_image(f"{tex_set.name}{suffix}", resolution[0], resolution[1])
-                    bake.use_clear = True
+                    _clear_image(image)
+                    bake.use_clear = False
 
                     if target_name == "tangent_normal":
                         cycles.bake_type = "NORMAL"
