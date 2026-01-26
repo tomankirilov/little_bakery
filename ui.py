@@ -118,17 +118,18 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             info_col.label(text=f"- Set: {data.baking_set_name}")
             info_col.label(text=f"- Target: {data.baking_target_name}")
             progress_box.prop(data, "baking_progress", text="Progress", slider=True)
-            return
 
-        if data.last_bake_duration and data.show_last_bake:
-            last_box = layout.box()
-            row = last_box.row()
-            row.alignment = "CENTER"
-            row.operator(
-                "dummybake.hide_last_bake",
-                text=f"Bake Completed in {data.last_bake_duration}",
-                emboss=False,
-            )
+            about_box = layout.box()
+            header = about_box.row(align=True)
+            header.label(text="About")
+            about_col = about_box.column(align=True)
+            label_row = about_col.row()
+            label_row.alignment = "CENTER"
+            label_row.label(text="Baked with love for everybody!")
+            row = about_col.row(align=True)
+            row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
+            row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
+            return
 
         about_box = layout.box()
         header = about_box.row(align=True)
@@ -148,6 +149,16 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row = about_col.row(align=True)
             row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
             row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
+
+        if data.last_bake_duration and data.show_last_bake:
+            last_box = layout.box()
+            row = last_box.row()
+            row.alignment = "CENTER"
+            row.operator(
+                "dummybake.hide_last_bake",
+                text=f"Bake Completed in {data.last_bake_duration}",
+                emboss=False,
+            )
 
         bake_box = layout.box()
         col = bake_box.column(align=True)
@@ -413,6 +424,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
                     high_item = low_item.high_polys[low_item.active_high_index]
                     high_box.prop(high_item, "color_attribute")
+
+        if data.is_baking:
+            return
 
 
 classes = (

@@ -36,11 +36,11 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
     def draw(self, context):
 
         layout = self.layout
+        layout.prop(self, "debug_logging")
+        layout.prop(self, "save_before_bake")
         row = layout.row(align=True)
         row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
         row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
-        layout.prop(self, "debug_logging")
-        layout.prop(self, "save_before_bake")
 
 _modules = (properties, operators, ui)
 
