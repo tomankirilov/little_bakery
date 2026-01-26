@@ -5,9 +5,9 @@ import os
 import bpy
 
 
-# I normalize the output folder name to a safe relative form.
+# normalize the output folder name to a safe relative form.
 def _normalize_output_dir(self, context):
-    # I normalize the output folder so it stays relative to the blend file.
+    # normalize the output folder so it stays relative to the blend file.
     # Store output as a blend-relative subfolder name.
     current = (self.output_dir or "")
     value = current.strip()
@@ -33,13 +33,13 @@ def _normalize_output_dir(self, context):
 
 
 class DummyBakeHighPolyItem(bpy.types.PropertyGroup):
-    # I keep high-poly entries lightweight; color_attribute is optional.
+    # keep high-poly entries lightweight; color_attribute is optional.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     color_attribute: bpy.props.StringProperty(name="Color Attribute", default="")
 
 
 class DummyBakeLowPolyItem(bpy.types.PropertyGroup):
-    # I store per-low-poly cage settings here so each low poly can override.
+    # store per-low-poly cage settings here so each low poly can override.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     high_polys: bpy.props.CollectionProperty(type=DummyBakeHighPolyItem)
     active_high_index: bpy.props.IntProperty(default=-1)
@@ -55,7 +55,7 @@ class DummyBakeLowPolyItem(bpy.types.PropertyGroup):
 
 
 class DummyBakeTextureSet(bpy.types.PropertyGroup):
-    # I group bake targets and their settings per texture set for overrides.
+    # group bake targets and their settings per texture set for overrides.
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
     low_polys: bpy.props.CollectionProperty(type=DummyBakeLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
@@ -105,7 +105,7 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
 
 
 class DummyBakeData(bpy.types.PropertyGroup):
-    # I centralize global settings here so the UI and bake logic share data.
+    # centralize global settings here so the UI and bake logic share data.
     texture_sets: bpy.props.CollectionProperty(type=DummyBakeTextureSet)
     active_texture_index: bpy.props.IntProperty(default=-1)
     show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=False)
@@ -235,17 +235,17 @@ classes = (
 )
 
 
-# I register property groups and attach them to the Scene.
+# register property groups and attach them to the Scene.
 def register():
-    # I register the property groups and attach them to the Scene.
+    # register the property groups and attach them to the Scene.
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.Scene.dummy_bake_data = bpy.props.PointerProperty(type=DummyBakeData)
 
 
-# I unregister property groups and remove the Scene pointer.
+# unregister property groups and remove the Scene pointer.
 def unregister():
-    # I remove the Scene pointer and unregister classes in reverse.
+    # remove the Scene pointer and unregister classes in reverse.
     del bpy.types.Scene.dummy_bake_data
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
