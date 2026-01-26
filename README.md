@@ -1,11 +1,9 @@
 # Dummy Bake Tools
-
 Dummy Bake Tools is a Blender addon that automates multi-target baking workflows
 for low/high poly setups. It focuses on predictable results, repeatable output
 settings, and quick switching between bake targets.
 
 ## What it does
-
 - Manages texture sets with low poly + high poly lists.
 - Bakes multiple targets in one pass (per texture set or all sets).
 - Adds configurable padding (dilation) to remove UV seams.
@@ -15,7 +13,6 @@ settings, and quick switching between bake targets.
 
 ## Bake targets
 Global and per-texture-set targets:
-
 - Tangent Space Normal
 - Object Space Normal
 - Ambient Occlusion
@@ -52,3 +49,7 @@ Rendering settings:
 ## Baking behavior notes
 - Only AO and Thickness use render samples; other targets render at 1 sample.
 - Dilation is done externally via OIIO.
+
+## About
+- This addon was created by Toman Tomanov (tomanov)
+- The addon is distributed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
