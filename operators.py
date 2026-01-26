@@ -69,6 +69,25 @@ def _progress(operator, context, message):
     _debug_log(context, message)
     _tag_redraw(context)
 
+
+# Ask for a saved blend file before baking.
+def _ensure_saved_blend(operator, context):
+    if bpy.data.is_saved:
+        return True
+    _popup_error(context, "Please save the .blend file before baking")
+    operator.report({"WARNING"}, "Please save the .blend file before baking")
+    return False
+
+
+# Show an error popup in the 3D View area.
+def _popup_error(context, message):
+    def draw(self, _context):
+        self.layout.label(text=message, icon="ERROR")
+
+    wm = getattr(context, "window_manager", None)
+    if wm:
+        wm.popup_menu(draw, title="Bakery")
+
 # Load the high poly material from the blend file.
 def _load_highpoly_material():
     # Load once and reuse for all bakes.
@@ -837,6 +856,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     def execute(self, context):
         # bake every texture set in order.
         # route to the shared bake pipeline for all texture sets.
+        if not _ensure_saved_blend(self, context):
+            return {"CANCELLED"}
         data = context.scene.bakery_data
         if not data.texture_sets:
             self.report({"WARNING"}, "No texture sets to bake")
@@ -855,6 +876,8 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     def execute(self, context):
         # bake only the currently active texture set.
         # route to the shared bake pipeline for just the active set.
+        if not _ensure_saved_blend(self, context):
+            return {"CANCELLED"}
         data = context.scene.bakery_data
         index = data.active_texture_index
         if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
@@ -921,16 +944,37 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     data = context.scene.bakery_data
     material = _load_highpoly_material()
     if not material:
+        _popup_error(context, "Missing high poly material")
         operator.report({"WARNING"}, "Missing high poly material")
+        return False
+
+    if not any(ts.low_polys for ts in texture_sets):
+        _popup_error(context, "Please add at least one low poly object")
+        operator.report({"WARNING"}, "Please add at least one low poly object")
+        return False
+
+    if not any(
+        enabled
+        for ts in texture_sets
+        for _, enabled, _ in _bake_targets_from_settings(_effective_settings(data, ts))
+    ):
+        _popup_error(context, "Please enable at least one bake target")
+        operator.report({"WARNING"}, "Please enable at least one bake target")
         return False
 
     prefs = _get_addon_prefs(context)
     if prefs and getattr(prefs, "save_before_bake", False):
-        try:
-            bpy.ops.wm.save_mainfile()
-            _debug_log(context, "Saved blend file before bake")
-        except RuntimeError:
-            operator.report({"WARNING"}, "Failed to save .blend before bake")
+        if bpy.data.is_saved:
+            try:
+                bpy.ops.wm.save_mainfile()
+                _debug_log(context, "Saved blend file before bake")
+            except RuntimeError:
+                _popup_error(context, "Failed to save .blend before bake")
+                operator.report({"WARNING"}, "Failed to save .blend before bake")
+        else:
+            _popup_error(context, "Please save the .blend file before baking")
+            operator.report({"WARNING"}, "Please save the .blend file before baking")
+            return False
 
     scene = context.scene
     cycles = scene.cycles
