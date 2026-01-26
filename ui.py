@@ -163,88 +163,12 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 emboss=False,
             )
 
-        bake_box = layout.box()
-        col = bake_box.column(align=True)
-        col.operator("bakery.bake_all", text="Bake All", icon='RENDER_RESULT')
-        col.operator("bakery.bake_selected_set", text="Bake Selected Set", icon='FILE_IMAGE')
-        bake_box.separator()
-        indent_row = bake_box.row()
-        indent_row.separator()
-        sections = indent_row.column(align=True)
+        buttons_col = layout.column(align=True)
+        buttons_col.operator("bakery.bake_all", text="Bake All", icon="RENDER_RESULT")
+        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Set", icon="FILE_IMAGE")
 
-        header = sections.row(align=True)
-        header.prop(
-            data,
-            "show_bake_targets",
-            icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
-            icon_only=True,
-            emboss=False,
-        )
-
-
-        ### BAKE TARGETS:
-        header.label(text="Bake Targets")
-        if data.show_bake_targets:
-            bake_col = _indent_column(sections)
-            bake_col.prop(data, "global_bake_tangent_normal")
-            if data.global_bake_tangent_normal:
-                tangent_col = _indent_column(bake_col)
-                _draw_custom_suffix(tangent_col, data, "global_", "tangent")
-            bake_col.prop(data, "global_bake_normals_ws")
-            if data.global_bake_normals_ws:
-                normals_col = _indent_column(bake_col)
-                _draw_custom_suffix(normals_col, data, "global_", "normals")
-            bake_col.prop(data, "global_bake_ambient_occlusion")
-            if data.global_bake_ambient_occlusion:
-                ao_col = _indent_column(bake_col)
-                _draw_ao_options(ao_col, data, "global_")
-            bake_col.prop(data, "global_bake_curvature")
-            if data.global_bake_curvature:
-                curv_col = _indent_column(bake_col)
-                _draw_curvature_options(curv_col, data, "global_")
-            bake_col.prop(data, "global_bake_thickness")
-            if data.global_bake_thickness:
-                thick_col = _indent_column(bake_col)
-                _draw_thickness_options(thick_col, data, "global_")
-            bake_col.prop(data, "global_bake_position")
-            if data.global_bake_position:
-                pos_col = _indent_column(bake_col)
-                _draw_custom_suffix(pos_col, data, "global_", "position")
-            bake_col.prop(data, "global_bake_color_attribute")
-            if data.global_bake_color_attribute:
-                color_col = _indent_column(bake_col)
-                color_col.prop(data, "global_color_attribute_name", text="Color Attribute")
-                _draw_custom_suffix(color_col, data, "global_", "color_attribute")
-            bake_col.prop(data, "global_bake_random_island")
-            if data.global_bake_random_island:
-                rand_col = _indent_column(bake_col)
-                _draw_custom_suffix(rand_col, data, "global_", "random_island")
-
-        header = sections.row(align=True)
-        header.prop(
-            data,
-            "show_render_settings",
-            icon="TRIA_DOWN" if data.show_render_settings else "TRIA_RIGHT",
-            icon_only=True,
-            emboss=False,
-        )
-
-        ### RENDERING::
-        header.label(text="Rendering")
-        if data.show_render_settings:
-            render_col = _indent_column(sections)
-            row = render_col.split(factor=0.4, align=True)
-            row.label(text="Render Device")
-            row.prop(data, "render_device", text="")
-            row = render_col.split(factor=0.4, align=True)
-            row.label(text="MSAA")
-            row.prop(data, "global_msaa", text="")
-            _draw_resolution_row(render_col, data, "global_resolution")
-            render_col.prop(data, "global_dilation")
-            render_col.prop(data, "global_extrusion")
-            render_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
-
-        header = sections.row(align=True)
+        global_box = layout.box()
+        header = global_box.row(align=True)
         header.prop(
             data,
             "show_global_settings",
@@ -252,31 +176,106 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-
-
-
-        ## OUTPUT:
-        header.label(text="Output")
+        header.label(text="Global Settings")
         if data.show_global_settings:
-            output_col = _indent_column(sections)
-            row = output_col.split(factor=0.4, align=True)
-            row.label(text="Output")
-            output_row = row.row(align=True)
-            output_row.prop(data, "output_dir", text="")
-            output_row.operator("bakery.pick_output_dir", text="", icon="FILE_FOLDER")
-            row = output_col.split(factor=0.4, align=True)
-            row.label(text="Format")
-            row.prop(data, "output_format", text="")
-            row = output_col.split(factor=0.4, align=True)
-            row.label(text="Color")
-            row.prop(data, "output_color_mode", text="")
-            if data.output_format == "PNG":
+            sections = _indent_column(global_box)
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_bake_targets",
+                icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Bake Targets")
+            if data.show_bake_targets:
+                bake_col = _indent_column(sections)
+                bake_col.prop(data, "global_bake_tangent_normal")
+                if data.global_bake_tangent_normal:
+                    tangent_col = _indent_column(bake_col)
+                    _draw_custom_suffix(tangent_col, data, "global_", "tangent")
+                bake_col.prop(data, "global_bake_normals_ws")
+                if data.global_bake_normals_ws:
+                    normals_col = _indent_column(bake_col)
+                    _draw_custom_suffix(normals_col, data, "global_", "normals")
+                bake_col.prop(data, "global_bake_ambient_occlusion")
+                if data.global_bake_ambient_occlusion:
+                    ao_col = _indent_column(bake_col)
+                    _draw_ao_options(ao_col, data, "global_")
+                bake_col.prop(data, "global_bake_curvature")
+                if data.global_bake_curvature:
+                    curv_col = _indent_column(bake_col)
+                    _draw_curvature_options(curv_col, data, "global_")
+                bake_col.prop(data, "global_bake_thickness")
+                if data.global_bake_thickness:
+                    thick_col = _indent_column(bake_col)
+                    _draw_thickness_options(thick_col, data, "global_")
+                bake_col.prop(data, "global_bake_position")
+                if data.global_bake_position:
+                    pos_col = _indent_column(bake_col)
+                    _draw_custom_suffix(pos_col, data, "global_", "position")
+                bake_col.prop(data, "global_bake_color_attribute")
+                if data.global_bake_color_attribute:
+                    color_col = _indent_column(bake_col)
+                    color_col.prop(data, "global_color_attribute_name", text="Color Attribute")
+                    _draw_custom_suffix(color_col, data, "global_", "color_attribute")
+                bake_col.prop(data, "global_bake_random_island")
+                if data.global_bake_random_island:
+                    rand_col = _indent_column(bake_col)
+                    _draw_custom_suffix(rand_col, data, "global_", "random_island")
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_render_settings",
+                icon="TRIA_DOWN" if data.show_render_settings else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Rendering")
+            if data.show_render_settings:
+                render_col = _indent_column(sections)
+                row = render_col.split(factor=0.4, align=True)
+                row.label(text="Render Device")
+                row.prop(data, "render_device", text="")
+                row = render_col.split(factor=0.4, align=True)
+                row.label(text="MSAA")
+                row.prop(data, "global_msaa", text="")
+                _draw_resolution_row(render_col, data, "global_resolution")
+                render_col.prop(data, "global_dilation")
+                render_col.prop(data, "global_extrusion")
+                render_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_output",
+                icon="TRIA_DOWN" if data.show_output else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Output")
+            if data.show_output:
+                output_col = _indent_column(sections)
                 row = output_col.split(factor=0.4, align=True)
-                row.label(text="Color Depth")
-                row.prop(data, "output_color_depth", text="")
+                row.label(text="Output")
+                output_row = row.row(align=True)
+                output_row.prop(data, "output_dir", text="")
+                output_row.operator("bakery.pick_output_dir", text="", icon="FILE_FOLDER")
                 row = output_col.split(factor=0.4, align=True)
-                row.label(text="Compression")
-                row.prop(data, "output_png_compression", text="")
+                row.label(text="Format")
+                row.prop(data, "output_format", text="")
+                row = output_col.split(factor=0.4, align=True)
+                row.label(text="Color")
+                row.prop(data, "output_color_mode", text="")
+                if data.output_format == "PNG":
+                    row = output_col.split(factor=0.4, align=True)
+                    row.label(text="Color Depth")
+                    row.prop(data, "output_color_depth", text="")
+                    row = output_col.split(factor=0.4, align=True)
+                    row.label(text="Compression")
+                    row.prop(data, "output_png_compression", text="")
 
         box = layout.box()
         header = box.row(align=True)

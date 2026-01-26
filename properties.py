@@ -111,6 +111,7 @@ class BakeryData(bpy.types.PropertyGroup):
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
     show_bake_targets: bpy.props.BoolProperty(name="Show Bake Targets", default=False)
+    show_output: bpy.props.BoolProperty(name="Show Output", default=False)
     show_about: bpy.props.BoolProperty(name="Show About", default=False)
     is_baking: bpy.props.BoolProperty(name="Is Baking", default=False)
     baking_set_name: bpy.props.StringProperty(name="Baking Set", default="")
