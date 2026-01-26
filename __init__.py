@@ -1,6 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0-or-later
-# Dummy Bake Tools addon skeleton.
-
 import bpy
 
 bl_info = {
