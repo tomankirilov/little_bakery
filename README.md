@@ -51,5 +51,5 @@ Rendering settings:
 - Dilation is done externally via OIIO.
 
 ## About
-- This addon was created by Toman Tomanov (tomanov)
-- The addon is distributed under the GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+- This addon was created by [Toman Tomanov (tomanov)](https://www.tomanov.art/)
+- The addon is distributed under the [GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007](https://www.gnu.org/licenses/gpl-3.0.en.html)
