@@ -4,8 +4,8 @@ import bpy
 
 
 _GEOMETRY_SKIP_TYPES = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE", "SPEAKER"}
-_HIGH_MATERIAL_NAME = "_dummy_baker_highpoly_material"
-_HIGH_MATERIAL_NODE_NAME = "_baker_highpoly_material"
+_HIGH_MATERIAL_NAME = "_bakery_material"
+_HIGH_MATERIAL_NODE_NAME = "_bakery_node_group"
 _BAKE_MODE_INPUT_INDEX = 0
 _TEMP_COLLECTION_NAME = "DummyBake_Temp"
 _BAKE_MODE_MAP = {
@@ -75,7 +75,7 @@ def _load_highpoly_material():
     material = bpy.data.materials.get(_HIGH_MATERIAL_NAME)
     if material:
         return material
-    blend_path = os.path.join(os.path.dirname(__file__), "dummy_bake_data.blend")
+    blend_path = os.path.join(os.path.dirname(__file__), "bakery_data.blend")
     if os.path.exists(blend_path):
         with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
             if _HIGH_MATERIAL_NAME in data_from.materials:
@@ -1167,6 +1167,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
         for group in created_node_groups:
             try:
                 bpy.data.node_groups.remove(group, do_unlink=True)
+            except RuntimeError:
+                pass
+        if material and material.name == _HIGH_MATERIAL_NAME:
+            try:
+                bpy.data.materials.remove(material, do_unlink=True)
             except RuntimeError:
                 pass
 
