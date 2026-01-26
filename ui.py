@@ -1,6 +1,10 @@
 import bpy
 
 
+## NOTE: https://docs.blender.org/manual/en/latest/contribute/manual/guides/icons.html
+## Blender icons ^^ 
+
+
 # create a slightly indented column for nested UI sections.
 def _indent_column(layout):
     # indent groups so nested options are easier to scan.
