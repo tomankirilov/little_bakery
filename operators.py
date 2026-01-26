@@ -78,7 +78,8 @@ def _set_highpoly_material_mode(material, mode):
 
 
 def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_distance,
-                                    curvature_exponent, thickness_samples, thickness_distance):
+                                    ao_contrast, curvature_exponent, curvature_contrast,
+                                    thickness_samples, thickness_distance):
     if not material:
         return
     node_group = bpy.data.node_groups.get(_HIGH_MATERIAL_NODE_NAME)
@@ -92,10 +93,12 @@ def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_dist
             thickness_node.samples = thickness_samples
     if material.node_tree:
         node = material.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
-        if node and len(node.inputs) >= 4:
+        if node and len(node.inputs) >= 6:
             node.inputs[1].default_value = ao_distance
-            node.inputs[2].default_value = curvature_exponent
-            node.inputs[3].default_value = thickness_distance
+            node.inputs[2].default_value = ao_contrast
+            node.inputs[3].default_value = curvature_contrast
+            node.inputs[4].default_value = curvature_exponent
+            node.inputs[5].default_value = thickness_distance
 
 
 def _find_layer_collection(layer_collection, target_collection):
@@ -408,7 +411,9 @@ def _effective_settings(data, tex_set):
             "ao_render_samples": tex_set.ao_render_samples,
             "ao_local_only": tex_set.ao_local_only,
             "ao_distance": tex_set.ao_distance,
+            "ao_contrast": tex_set.ao_contrast,
             "curvature_exponent": tex_set.curvature_exponent,
+            "curvature_contrast": tex_set.curvature_contrast,
             "thickness_samples": tex_set.thickness_samples,
             "thickness_render_samples": tex_set.thickness_render_samples,
             "thickness_distance": tex_set.thickness_distance,
@@ -442,7 +447,9 @@ def _effective_settings(data, tex_set):
         "ao_render_samples": data.global_ao_render_samples,
         "ao_local_only": data.global_ao_local_only,
         "ao_distance": data.global_ao_distance,
+        "ao_contrast": data.global_ao_contrast,
         "curvature_exponent": data.global_curvature_exponent,
+        "curvature_contrast": data.global_curvature_contrast,
         "thickness_samples": data.global_thickness_samples,
         "thickness_render_samples": data.global_thickness_render_samples,
         "thickness_distance": data.global_thickness_distance,
@@ -869,7 +876,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         settings["ao_samples"],
                         settings["ao_local_only"],
                         settings["ao_distance"],
+                        settings["ao_contrast"],
                         settings["curvature_exponent"],
+                        settings["curvature_contrast"],
                         settings["thickness_samples"],
                         settings["thickness_distance"],
                     )

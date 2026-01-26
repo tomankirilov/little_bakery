@@ -28,11 +28,13 @@ def _draw_ao_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}ao_samples")
     layout.prop(obj, f"{prefix}ao_render_samples")
     layout.prop(obj, f"{prefix}ao_distance")
+    layout.prop(obj, f"{prefix}ao_contrast")
     _draw_custom_suffix(layout, obj, prefix, "ao")
 
 
 def _draw_curvature_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}curvature_exponent")
+    layout.prop(obj, f"{prefix}curvature_contrast")
     _draw_custom_suffix(layout, obj, prefix, "curvature")
 
 
