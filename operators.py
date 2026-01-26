@@ -31,9 +31,9 @@ _TARGET_LABELS = {
     "random_island": "Random Island",
 }
 
-
+# Grab addon preferences if they exist (read debug)
 def _get_addon_prefs(context):
-    # Look up addon preferences for optional debug logging.
+    # Check for debug logging.
     if context is None:
         return None
     prefs = getattr(context, "preferences", None)
@@ -42,21 +42,22 @@ def _get_addon_prefs(context):
     addon = prefs.addons.get(__package__)
     return addon.preferences if addon else None
 
-
+# Print debug messages only when logging is enabled.
 def _debug_log(context, message):
-    # Centralized debug logging toggle to avoid print spam when disabled.
+    # Global debug log bool:
     prefs = _get_addon_prefs(context)
     if prefs and getattr(prefs, "debug_logging", False):
         print(f"DummyBake: {message}")
 
-
+# Show progress text and log it.
 def _progress(operator, context, message):
-    # Lightweight progress notification shown in Blender's status bar.
+    # progress notification in Blender;s status bar.
     operator.report({"INFO"}, message)
     _debug_log(context, message)
 
-
+# Load the high poly material from the blend file.
 def _load_highpoly_material():
+    # Load once and reuse for all bakes.
     material = bpy.data.materials.get(_HIGH_MATERIAL_NAME)
     if material:
         return material
@@ -67,8 +68,9 @@ def _load_highpoly_material():
                 data_to.materials = [_HIGH_MATERIAL_NAME]
     return bpy.data.materials.get(_HIGH_MATERIAL_NAME)
 
-
+# Set the high poly material to the needed bake mode.
 def _set_highpoly_material_mode(material, mode):
+    # Switch the material's bake mode by writing into the node input.
     if not material or not material.node_tree:
         return
     node = material.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
@@ -76,10 +78,11 @@ def _set_highpoly_material_mode(material, mode):
         return
     node.inputs[_BAKE_MODE_INPUT_INDEX].default_value = mode
 
-
+# Set AO/curvature/thickness values into the material nodes.
 def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_distance,
                                     ao_contrast, curvature_exponent, curvature_contrast,
                                     thickness_samples, thickness_distance):
+    # Push all AO/Curvature/Thickness sliders into the shared node group.
     if not material:
         return
     node_group = bpy.data.node_groups.get(_HIGH_MATERIAL_NODE_NAME)
@@ -100,7 +103,7 @@ def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_dist
             node.inputs[4].default_value = curvature_exponent
             node.inputs[5].default_value = thickness_distance
 
-
+# I search the layer collection tree to find a specific collection.
 def _find_layer_collection(layer_collection, target_collection):
     if layer_collection.collection == target_collection:
         return layer_collection
@@ -110,8 +113,9 @@ def _find_layer_collection(layer_collection, target_collection):
             return found
     return None
 
-
+# I make sure the temp collection exists and is visible.
 def _ensure_temp_collection(scene, view_layer):
+    # I use a temp collection to link objects into the view layer if needed.
     collection = bpy.data.collections.get(_TEMP_COLLECTION_NAME)
     if not collection:
         collection = bpy.data.collections.new(_TEMP_COLLECTION_NAME)
@@ -123,8 +127,9 @@ def _ensure_temp_collection(scene, view_layer):
         layer_collection.hide_viewport = False
     return collection
 
-
+# I find a View3D override so bake operators have a valid context.
 def _get_view3d_override(scene, view_layer, active, selected):
+    # I find a View3D context override so bake ops can run safely.
     for window in bpy.context.window_manager.windows:
         for area in window.screen.areas:
             if area.type != "VIEW_3D":
@@ -144,8 +149,9 @@ def _get_view3d_override(scene, view_layer, active, selected):
                     }
     return {}
 
-
+# I make sure the first material slot is set on the object.
 def _ensure_material_slot(obj, material):
+    # I force the first material slot so baking always targets the same slot.
     data = getattr(obj, "data", None)
     if not data or not hasattr(data, "materials"):
         return False
@@ -155,8 +161,9 @@ def _ensure_material_slot(obj, material):
         data.materials[0] = material
     return True
 
-
+# I create a basic low-poly material if the object has none.
 def _ensure_low_material(obj):
+    # I make sure the low poly has a nodes-enabled material to host the bake.
     data = getattr(obj, "data", None)
     if not data or not hasattr(data, "materials"):
         return None
@@ -169,15 +176,17 @@ def _ensure_low_material(obj):
     material.use_nodes = True
     return material
 
-
+# I store current materials so I can restore them later.
 def _capture_materials(obj):
+    # I stash existing materials so I can restore them after baking.
     data = getattr(obj, "data", None)
     if not data or not hasattr(data, "materials"):
         return None
     return list(data.materials)
 
-
+# I put materials back the way they were before baking.
 def _restore_materials(obj, materials):
+    # I restore the exact material list we had before baking.
     if materials is None:
         return
     data = getattr(obj, "data", None)
@@ -187,8 +196,9 @@ def _restore_materials(obj, materials):
     for mat in materials:
         data.materials.append(mat)
 
-
+# I set selection and active object for baking.
 def _set_selection(scene, view_layer, objects, active=None):
+    # I control selection to satisfy Blender's bake requirements.
     for obj in view_layer.objects:
         obj.select_set(False)
 
@@ -212,20 +222,22 @@ def _set_selection(scene, view_layer, objects, active=None):
         view_layer.objects.active = active
     return selectable, temp_links, temp_collection
 
-
+# I create a new image to bake into.
 def _make_image(name, width, height):
+    # I create a new RGBA image with transparent background.
     image = bpy.data.images.new(name=name, width=width, height=height, alpha=True)
     image.generated_color = (0.0, 0.0, 0.0, 0.0)
     image.alpha_mode = "STRAIGHT"
     return image
 
-
+# I clear the image pixels so the bake starts empty.
 def _clear_image(image):
+    # I clear pixels manually to avoid baking over old data.
     pixel_count = image.size[0] * image.size[1] * 4
     image.pixels.foreach_set([0.0] * pixel_count)
     image.update()
 
-
+# I expand edge colors into transparent pixels.
 def _dilate_image(image, iterations):
     # Expand colors into transparent pixels using a multi-source BFS so the
     # padding comes from original opaque pixels instead of iterative smearing.
@@ -287,7 +299,7 @@ def _dilate_image(image, iterations):
     image.pixels.foreach_set(pixels)
     image.update()
 
-
+# I save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
     # Use render image settings because Image doesn't expose color format fields.
     scene = scene or bpy.context.scene
@@ -317,7 +329,7 @@ def _save_image(image, output_dir, filename, settings, scene=None, context=None)
         image_settings.compression = saved_settings["compression"]
     _debug_log(context, f"Saved image to {filepath}")
 
-
+# I turn the output string into a real folder path.
 def _resolve_output_dir(output_dir):
     # Convert user input into a path relative to the current blend file.
     value = (output_dir or "").strip()
@@ -331,7 +343,7 @@ def _resolve_output_dir(output_dir):
     value = value.lstrip("\\/")
     return os.path.join(base_dir, value)
 
-
+# I convert an absolute path to a blend-relative folder name.
 def _relative_to_blend(path):
     # Collapse absolute paths under the blend directory to a relative subfolder.
     base_dir = bpy.path.abspath("//")
@@ -345,8 +357,9 @@ def _relative_to_blend(path):
     relative = relative.lstrip("\\/")
     return f"/{relative}" if relative else ""
 
-
+# I list bake targets in the order I want to process them.
 def _bake_targets_from_settings(settings):
+    # I keep the bake order stable so output naming stays predictable.
     return [
         ("tangent_normal", settings["tangent_normal"], settings["tangent_suffix"]),
         ("normals_ws", settings["normals_ws"], settings["normals_suffix"]),
@@ -358,7 +371,7 @@ def _bake_targets_from_settings(settings):
         ("random_island", settings["random_island"], settings["random_island_suffix"]),
     ]
 
-
+# I convert the MSAA choice into a numeric scale factor.
 def _msaa_factor(value):
     # Parse UI enum values into a numeric scale factor.
     try:
@@ -366,7 +379,7 @@ def _msaa_factor(value):
     except (TypeError, ValueError):
         return 1
 
-
+# I clone materials so each high poly can use its own color attribute name.
 def _copy_color_attribute_material(base_material, attribute_name, cache, created_materials, created_node_groups):
     # Create a per-attribute material + node-group copy so each high poly can
     # point to a different color attribute without stomping shared state.
@@ -393,7 +406,7 @@ def _copy_color_attribute_material(base_material, attribute_name, cache, created
     cache[key] = material_copy
     return material_copy
 
-
+# I set bake mode and samples for the current target.
 def _prepare_bake_target(target_name, settings, material, cycles, bake):
     # Configure Cycles bake settings and the shared material for the target.
     if target_name == "tangent_normal":
@@ -421,7 +434,7 @@ def _prepare_bake_target(target_name, settings, material, cycles, bake):
         _set_highpoly_material_mode(material, mode)
     return True
 
-
+# I merge global settings with per-texture-set overrides.
 def _effective_settings(data, tex_set):
     # Merge texture-set overrides with global defaults into a flat settings dict.
     if tex_set.override_global_settings:
@@ -498,8 +511,9 @@ def _effective_settings(data, tex_set):
         "output_png_compression": data.output_png_compression,
     }
 
-
+# I capture current render and bake settings before changing them.
 def _capture_scene_settings(scene):
+    # I save scene render and bake settings so I can put everything back.
     cycles = scene.cycles
     bake = scene.render.bake
     view = scene.view_settings
@@ -525,8 +539,9 @@ def _capture_scene_settings(scene):
         "normal_space": bake.normal_space,
     }
 
-
+# I apply a predictable scene setup for baking.
 def _apply_scene_settings(scene, data):
+    # I enforce a predictable bake setup (engine, samples, bounces, etc).
     cycles = scene.cycles
     bake = scene.render.bake
     view = scene.view_settings
@@ -542,8 +557,9 @@ def _apply_scene_settings(scene, data):
     bake.margin = 0
     cycles.samples = 1
 
-
+# I restore render and bake settings to what they were.
 def _restore_scene_settings(scene, saved):
+    # I restore every render/bake setting I changed.
     cycles = scene.cycles
     bake = scene.render.bake
     view = scene.view_settings
@@ -573,7 +589,9 @@ class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
     bl_label = "Add Texture Set"
     bl_description = "Add a new texture set"
 
+    # I add a new texture set.
     def execute(self, context):
+        # I add a new texture set and make it active.
         data = context.scene.dummy_bake_data
         item = data.texture_sets.add()
         item.name = f"Texture Set {len(data.texture_sets)}"
@@ -586,7 +604,9 @@ class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
     bl_label = "Remove Texture Set"
     bl_description = "Remove the selected texture set"
 
+    # I remove the active texture set.
     def execute(self, context):
+        # I remove the active texture set safely.
         data = context.scene.dummy_bake_data
         index = data.active_texture_index
         if 0 <= index < len(data.texture_sets):
@@ -603,7 +623,9 @@ class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
     bl_label = "Add Low Poly"
     bl_description = "Add a low poly entry to the selected texture set"
 
+    # I add selected objects to the low poly list.
     def execute(self, context):
+        # I add selected objects as low polys.
         data = context.scene.dummy_bake_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -631,7 +653,9 @@ class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
     bl_label = "Remove Low Poly"
     bl_description = "Remove the selected low poly entry"
 
+    # I remove the active low poly entry.
     def execute(self, context):
+        # I remove the active low poly entry.
         data = context.scene.dummy_bake_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -651,7 +675,9 @@ class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
     bl_label = "Add High Poly"
     bl_description = "Add a high poly entry to the selected low poly"
 
+    # I add selected objects to the high poly list.
     def execute(self, context):
+        # I add selected objects as high polys.
         data = context.scene.dummy_bake_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -682,7 +708,9 @@ class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
     bl_label = "Remove High Poly"
     bl_description = "Remove the selected high poly entry"
 
+    # I remove the active high poly entry.
     def execute(self, context):
+        # I remove the active high poly entry.
         data = context.scene.dummy_bake_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -714,7 +742,9 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
     )
     item_index: bpy.props.IntProperty()
 
+    # I sync list selection with the scene selection.
     def invoke(self, context, event):
+        # I sync list selection and optionally select the object in the scene.
         data = context.scene.dummy_bake_data
         if self.list_kind == "LOW":
             if not data.texture_sets or data.active_texture_index < 0:
@@ -759,7 +789,9 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
         ]
     )
 
+    # I clear list selections.
     def execute(self, context):
+        # I clear list selections without touching the objects.
         data = context.scene.dummy_bake_data
         if self.list_kind == "TEXTURE":
             data.active_texture_index = -1
@@ -787,7 +819,10 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     bl_label = "Bake All"
     bl_description = "Bake all texture sets"
 
+    # I bake every texture set.
     def execute(self, context):
+        # I bake every texture set in order.
+        # I route to the shared bake pipeline for all texture sets.
         data = context.scene.dummy_bake_data
         if not data.texture_sets:
             self.report({"WARNING"}, "No texture sets to bake")
@@ -802,7 +837,10 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_label = "Bake Selected Set"
     bl_description = "Bake the active texture set"
 
+    # I bake only the active texture set.
     def execute(self, context):
+        # I bake only the currently active texture set.
+        # I route to the shared bake pipeline for just the active set.
         data = context.scene.dummy_bake_data
         index = data.active_texture_index
         if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
@@ -824,7 +862,9 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
 
     directory: bpy.props.StringProperty(subtype="DIR_PATH")
 
+    # I open the file picker at the current output folder.
     def invoke(self, context, event):
+        # I open the folder picker at the current output location.
         data = context.scene.dummy_bake_data
         base_dir = bpy.path.abspath("//")
         current = _resolve_output_dir(data.output_dir)
@@ -838,13 +878,17 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
+    # I store the chosen folder as a relative path.
     def execute(self, context):
+        # I store the picked folder as a blend-relative path.
         data = context.scene.dummy_bake_data
         if self.directory:
             data.output_dir = _relative_to_blend(self.directory)
         return {"FINISHED"}
 
 
+# I run the full bake pipeline for one or more texture sets.
+# I bake one or more texture sets with shared logic.
 def _bake_texture_sets(operator, context, texture_sets, label):
     # Main bake entry point used by both "Bake All" and "Bake Selected Set".
     data = context.scene.dummy_bake_data
@@ -1058,6 +1102,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
     finally:
+        # I always clean up progress bars and any temporary data.
         if wm:
             wm.progress_end()
         _restore_scene_settings(scene, saved)
@@ -1094,11 +1139,13 @@ classes = (
 )
 
 
+# I register all operator classes.
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
+# I unregister operator classes in reverse order.
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

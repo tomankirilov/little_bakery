@@ -2,19 +2,28 @@
 import bpy
 
 
+# I create a slightly indented column for nested UI sections.
 def _indent_column(layout):
+    # I indent groups so nested options are easier to scan.
+    # I use this to visually nest settings under foldouts.
     row = layout.row()
     row.separator()
     return row.column(align=True)
 
 
+# I draw a resolution row with a label and a field.
 def _draw_resolution_row(layout, obj, prop_name):
+    # I draw the resolution in a consistent label/value layout.
+    # I keep resolution rows consistent across global and per-set UI.
     row = layout.split(factor=0.4, align=True)
     row.label(text="Resolution")
     row.prop(obj, prop_name, text="")
 
 
+# I draw custom suffix toggles and inputs.
 def _draw_custom_suffix(layout, obj, prefix, base):
+    # I show suffix fields only when the custom toggle is on.
+    # I only show suffix fields when the custom flag is enabled.
     flag_name = f"{prefix}{base}_custom_suffix"
     value_name = f"{prefix}{base}_suffix"
     layout.prop(obj, flag_name)
@@ -22,7 +31,10 @@ def _draw_custom_suffix(layout, obj, prefix, base):
         layout.prop(obj, value_name)
 
 
+# I draw all ambient occlusion settings.
 def _draw_ao_options(layout, obj, prefix):
+    # I group all AO settings under the AO toggle.
+    # I place AO details under the AO toggle so they stay compact.
     layout.prop(obj, f"{prefix}ao_local_only")
     layout.prop(obj, f"{prefix}ao_samples")
     layout.prop(obj, f"{prefix}ao_render_samples")
@@ -31,13 +43,19 @@ def _draw_ao_options(layout, obj, prefix):
     _draw_custom_suffix(layout, obj, prefix, "ao")
 
 
+# I draw all curvature settings.
 def _draw_curvature_options(layout, obj, prefix):
+    # I group curvature sliders together.
+    # Curvature needs two sliders, so I group them here.
     layout.prop(obj, f"{prefix}curvature_exponent")
     layout.prop(obj, f"{prefix}curvature_contrast")
     _draw_custom_suffix(layout, obj, prefix, "curvature")
 
 
+# I draw all thickness settings.
 def _draw_thickness_options(layout, obj, prefix):
+    # I group thickness sliders together.
+    # Thickness also has multiple fields, so I wrap them in this helper.
     layout.prop(obj, f"{prefix}thickness_samples")
     layout.prop(obj, f"{prefix}thickness_render_samples")
     layout.prop(obj, f"{prefix}thickness_distance")
@@ -45,6 +63,8 @@ def _draw_thickness_options(layout, obj, prefix):
 
 
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
+    # I draw each texture set row.
+    # I keep list rows compact: icon + name.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         row.label(icon="IMAGE_DATA")
@@ -52,6 +72,8 @@ class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
 
 
 class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
+    # I draw each low poly row.
+    # I expose a quick select button and an object search per row.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("dummybake.select_object", text="", icon="MESH_DATA", emboss=False)
@@ -62,6 +84,8 @@ class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
 
 
 class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
+    # I draw each high poly row.
+    # High polys mirror the low poly list layout for consistency.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("dummybake.select_object", text="", icon="MESH_DATA", emboss=False)
@@ -78,7 +102,10 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Dummy Bake"
 
+    # I draw the main sidebar UI.
     def draw(self, context):
+        # I build the sidebar layout from top to bottom.
+        # I build the whole sidebar here, starting with About and then Bake.
         layout = self.layout
         data = context.scene.dummy_bake_data
 
@@ -104,7 +131,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         bake_box = layout.box()
         col = bake_box.column(align=True)
         col.operator("dummybake.bake_all", text="Bake All", icon='RENDER_RESULT')
-        col.operator("dummybake.bake_selected_set", text="Bake Selected Set", icon='RENDER_RESULT')
+        col.operator("dummybake.bake_selected_set", text="Bake Selected Set", icon='FILE_IMAGE')
         bake_box.separator()
         indent_row = bake_box.row()
         indent_row.separator()
@@ -118,6 +145,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
+
+
+        ### BAKE TARGETS:
         header.label(text="Bake Targets")
         if data.show_bake_targets:
             bake_col = _indent_column(sections)
@@ -163,6 +193,8 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
+
+        ### RENDERING::
         header.label(text="Rendering")
         if data.show_render_settings:
             render_col = _indent_column(sections)
@@ -185,6 +217,10 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
+
+
+
+        ## OUTPUT:
         header.label(text="Output")
         if data.show_global_settings:
             output_col = _indent_column(sections)
@@ -366,11 +402,15 @@ classes = (
 )
 
 
+# I register all UI classes.
 def register():
+    # I register all UI classes.
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
+# I unregister all UI classes.
 def unregister():
+    # I unregister UI classes in reverse order.
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

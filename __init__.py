@@ -27,7 +27,9 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
         default=False,
     )
 
+    # Draw Preferences UI.
     def draw(self, context):
+
         layout = self.layout
         row = layout.row(align=True)
         row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
