@@ -291,7 +291,7 @@ def _dilate_image(image, iterations):
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
     # Use render image settings because Image doesn't expose color format fields.
     scene = scene or bpy.context.scene
-    output_dir = bpy.path.abspath(output_dir or "//")
+    output_dir = _resolve_output_dir(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     filepath = os.path.join(output_dir, filename)
     image.filepath_raw = filepath
@@ -316,6 +316,34 @@ def _save_image(image, output_dir, filename, settings, scene=None, context=None)
         image_settings.color_depth = saved_settings["color_depth"]
         image_settings.compression = saved_settings["compression"]
     _debug_log(context, f"Saved image to {filepath}")
+
+
+def _resolve_output_dir(output_dir):
+    # Convert user input into a path relative to the current blend file.
+    value = (output_dir or "").strip()
+    base_dir = bpy.path.abspath("//")
+    if not value:
+        return base_dir
+    if value.startswith("//"):
+        value = value[2:]
+    if value.startswith("/"):
+        value = value[1:]
+    value = value.lstrip("\\/")
+    return os.path.join(base_dir, value)
+
+
+def _relative_to_blend(path):
+    # Collapse absolute paths under the blend directory to a relative subfolder.
+    base_dir = bpy.path.abspath("//")
+    normalized = bpy.path.abspath(path)
+    try:
+        relative = os.path.relpath(normalized, base_dir)
+    except ValueError:
+        return os.path.basename(normalized)
+    if relative.startswith(".."):
+        return os.path.basename(normalized)
+    relative = relative.lstrip("\\/")
+    return f"/{relative}" if relative else ""
 
 
 def _bake_targets_from_settings(settings):
@@ -789,6 +817,34 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
         return {"FINISHED"} if result else {"CANCELLED"}
 
 
+class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
+    bl_idname = "dummybake.pick_output_dir"
+    bl_label = "Pick Output Folder"
+    bl_description = "Choose a subfolder relative to the current blend file"
+
+    directory: bpy.props.StringProperty(subtype="DIR_PATH")
+
+    def invoke(self, context, event):
+        data = context.scene.dummy_bake_data
+        base_dir = bpy.path.abspath("//")
+        current = _resolve_output_dir(data.output_dir)
+        target = current if current else base_dir
+        if target and not os.path.isdir(target):
+            try:
+                os.makedirs(target, exist_ok=True)
+            except OSError:
+                target = base_dir
+        self.directory = target
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        data = context.scene.dummy_bake_data
+        if self.directory:
+            data.output_dir = _relative_to_blend(self.directory)
+        return {"FINISHED"}
+
+
 def _bake_texture_sets(operator, context, texture_sets, label):
     # Main bake entry point used by both "Bake All" and "Bake Selected Set".
     data = context.scene.dummy_bake_data
@@ -1034,6 +1090,7 @@ classes = (
     DUMMYBAKE_OT_clear_selection,
     DUMMYBAKE_OT_bake_all,
     DUMMYBAKE_OT_bake_selected_set,
+    DUMMYBAKE_OT_pick_output_dir,
 )
 
 

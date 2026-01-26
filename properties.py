@@ -1,6 +1,33 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import os
+
 import bpy
+
+
+def _normalize_output_dir(self, context):
+    # Store output as a blend-relative subfolder name.
+    current = (self.output_dir or "")
+    value = current.strip()
+    if not value:
+        return
+    value = value.replace("\\", "/")
+    if value.startswith("//"):
+        value = value[2:]
+    if value.startswith("/"):
+        value = value[1:]
+    base_dir = bpy.path.abspath("//")
+    if os.path.isabs(value):
+        try:
+            value = os.path.relpath(value, base_dir)
+        except ValueError:
+            value = os.path.basename(value)
+    value = value.strip().lstrip("\\/")
+    if value:
+        value = f"/{value}"
+    if value == current:
+        return
+    self.output_dir = value
 
 
 class DummyBakeHighPolyItem(bpy.types.PropertyGroup):
@@ -101,8 +128,9 @@ class DummyBakeData(bpy.types.PropertyGroup):
     )
     output_dir: bpy.props.StringProperty(
         name="Output",
-        subtype="DIR_PATH",
+        subtype="NONE",
         default="",
+        update=_normalize_output_dir,
     )
     output_format: bpy.props.EnumProperty(
         name="File Format",
