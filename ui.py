@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-
 import bpy
 
 
@@ -83,14 +82,29 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         layout = self.layout
         data = context.scene.dummy_bake_data
 
-        row = layout.row(align=True)
-        row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
-        row.operator("wm.url_open", text="Tomanov Art").url = "https://tomanov.art/"
+        about_box = layout.box()
+        header = about_box.row(align=True)
+        header.prop(
+            data,
+            "show_about",
+            icon="TRIA_DOWN" if data.show_about else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="About")
+        if data.show_about:
+            about_col = about_box.column(align=True)
+            label_row = about_col.row()
+            label_row.alignment = "CENTER"
+            label_row.label(text="🥐 Baked with love for everybody!")
+            row = about_col.row(align=True)
+            row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
+            row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
 
         bake_box = layout.box()
         col = bake_box.column(align=True)
-        col.operator("dummybake.bake_all", text="Bake All")
-        col.operator("dummybake.bake_selected_set", text="Bake Selected Set")
+        col.operator("dummybake.bake_all", text="Bake All", icon='RENDER_RESULT')
+        col.operator("dummybake.bake_selected_set", text="Bake Selected Set", icon='RENDER_RESULT')
         bake_box.separator()
         indent_row = bake_box.row()
         indent_row.separator()

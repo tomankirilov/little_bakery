@@ -6,7 +6,7 @@ import bpy
 bl_info = {
     "name": "Dummy Bake Tools",
     "author": "tomanov",
-    "version": (0, 1, 0),
+    "version": (1, 0, 0),
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Dummy Bake",
     "description": "bake automation",
@@ -31,7 +31,7 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
         layout = self.layout
         row = layout.row(align=True)
         row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
-        row.operator("wm.url_open", text="Tomanov Art").url = "https://tomanov.art/"
+        row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
         layout.prop(self, "debug_logging")
 
 _modules = (properties, operators, ui)

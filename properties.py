@@ -108,6 +108,7 @@ class DummyBakeData(bpy.types.PropertyGroup):
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
     show_bake_targets: bpy.props.BoolProperty(name="Show Bake Targets", default=False)
+    show_about: bpy.props.BoolProperty(name="Show About", default=False)
     render_device: bpy.props.EnumProperty(
         name="Render Device",
         items=[
