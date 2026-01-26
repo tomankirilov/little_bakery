@@ -1,11 +1,11 @@
 import bpy
 
 bl_info = {
-    "name": "Dummy Bake Tools",
+    "name": "Bakery",
     "author": "tomanov",
     "version": (1, 0, 0),
     "blender": (5, 0, 0),
-    "location": "View3D > Sidebar > Dummy Bake",
+    "location": "View3D > Sidebar > Bakery",
     "description": "bake automation",
     "category": "Object",
 }
@@ -15,7 +15,7 @@ from . import operators, properties, ui
 _ADDON_ID = __name__
 
 
-class DummyBakePreferences(bpy.types.AddonPreferences):
+class BakeryPreferences(bpy.types.AddonPreferences):
     bl_idname = _ADDON_ID
 
     debug_logging: bpy.props.BoolProperty(
@@ -43,7 +43,7 @@ _modules = (properties, operators, ui)
 
 
 def register():
-    bpy.utils.register_class(DummyBakePreferences)
+    bpy.utils.register_class(BakeryPreferences)
     for module in _modules:
         module.register()
 
@@ -51,7 +51,7 @@ def register():
 def unregister():
     for module in reversed(_modules):
         module.unregister()
-    bpy.utils.unregister_class(DummyBakePreferences)
+    bpy.utils.unregister_class(BakeryPreferences)
 
 
 if __name__ == "__main__":

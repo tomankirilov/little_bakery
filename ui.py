@@ -79,7 +79,7 @@ class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
     # expose a quick select button and an object search per row.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
-        op = row.operator("dummybake.select_object", text="", icon="MESH_DATA", emboss=False)
+        op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
         op.object_name = item.object.name if item.object else ""
         op.list_kind = "LOW"
         op.item_index = index
@@ -91,7 +91,7 @@ class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
     # High polys mirror the low poly list layout for consistency.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
-        op = row.operator("dummybake.select_object", text="", icon="MESH_DATA", emboss=False)
+        op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
         op.object_name = item.object.name if item.object else ""
         op.list_kind = "HIGH"
         op.item_index = index
@@ -99,18 +99,18 @@ class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
-    bl_label = "Dummy Bake Tools"
+    bl_label = "Bakery"
     bl_idname = "DUMMYBAKE_PT_tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Dummy Bake"
+    bl_category = "Bakery"
 
     # draw the main sidebar UI.
     def draw(self, context):
         # build the sidebar layout from top to bottom.
         # build the whole sidebar here, starting with About and then Bake.
         layout = self.layout
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
 
         if data.is_baking:
             progress_box = layout.box()
@@ -158,15 +158,15 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row = last_box.row()
             row.alignment = "CENTER"
             row.operator(
-                "dummybake.hide_last_bake",
+                "bakery.hide_last_bake",
                 text=f"Bake Completed in {data.last_bake_duration}",
                 emboss=False,
             )
 
         bake_box = layout.box()
         col = bake_box.column(align=True)
-        col.operator("dummybake.bake_all", text="Bake All", icon='RENDER_RESULT')
-        col.operator("dummybake.bake_selected_set", text="Bake Selected Set", icon='FILE_IMAGE')
+        col.operator("bakery.bake_all", text="Bake All", icon='RENDER_RESULT')
+        col.operator("bakery.bake_selected_set", text="Bake Selected Set", icon='FILE_IMAGE')
         bake_box.separator()
         indent_row = bake_box.row()
         indent_row.separator()
@@ -263,7 +263,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row.label(text="Output")
             output_row = row.row(align=True)
             output_row.prop(data, "output_dir", text="")
-            output_row.operator("dummybake.pick_output_dir", text="", icon="FILE_FOLDER")
+            output_row.operator("bakery.pick_output_dir", text="", icon="FILE_FOLDER")
             row = output_col.split(factor=0.4, align=True)
             row.label(text="Format")
             row.prop(data, "output_format", text="")
@@ -303,9 +303,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 rows=2,
             )
             col = row.column(align=True)
-            col.operator("dummybake.texture_set_add", icon="ADD", text="")
-            col.operator("dummybake.texture_set_remove", icon="REMOVE", text="")
-            clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+            col.operator("bakery.texture_set_add", icon="ADD", text="")
+            col.operator("bakery.texture_set_remove", icon="REMOVE", text="")
+            clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
             clear_op.list_kind = "TEXTURE"
 
             if tex_set:
@@ -372,9 +372,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 rows=2,
             )
             col = row.column(align=True)
-            col.operator("dummybake.low_poly_add", icon="ADD", text="")
-            col.operator("dummybake.low_poly_remove", icon="REMOVE", text="")
-            clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+            col.operator("bakery.low_poly_add", icon="ADD", text="")
+            col.operator("bakery.low_poly_remove", icon="REMOVE", text="")
+            clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
             clear_op.list_kind = "LOW"
 
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
@@ -420,9 +420,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     rows=2,
                 )
                 col = row.column(align=True)
-                col.operator("dummybake.high_poly_add", icon="ADD", text="")
-                col.operator("dummybake.high_poly_remove", icon="REMOVE", text="")
-                clear_op = col.operator("dummybake.clear_selection", icon="PANEL_CLOSE", text="")
+                col.operator("bakery.high_poly_add", icon="ADD", text="")
+                col.operator("bakery.high_poly_remove", icon="REMOVE", text="")
+                clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
                 clear_op.list_kind = "HIGH"
                 if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
                     high_item = low_item.high_polys[low_item.active_high_index]

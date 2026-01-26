@@ -7,7 +7,7 @@ _GEOMETRY_SKIP_TYPES = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE", "SPEAKER"}
 _HIGH_MATERIAL_NAME = "_bakery_material"
 _HIGH_MATERIAL_NODE_NAME = "_bakery_node_group"
 _BAKE_MODE_INPUT_INDEX = 0
-_TEMP_COLLECTION_NAME = "DummyBake_Temp"
+_TEMP_COLLECTION_NAME = "Bakery_Temp"
 _BAKE_MODE_MAP = {
     "normals_ws": "normalws",
     "ambient_occlusion": "ambient_occlusion",
@@ -44,7 +44,7 @@ def _debug_log(context, message):
     # Global debug log bool:
     prefs = _get_addon_prefs(context)
     if prefs and getattr(prefs, "debug_logging", False):
-        print(f"DummyBake: {message}")
+        print(f"Bakery: {message}")
 
 # Force the UI to redraw so the panel updates while baking.
 def _tag_redraw(context):
@@ -182,7 +182,7 @@ def _ensure_low_material(obj):
     if not data or not hasattr(data, "materials"):
         return None
     if len(data.materials) == 0 or data.materials[0] is None:
-        material = bpy.data.materials.new(name="DummyBake_Low")
+        material = bpy.data.materials.new(name="Bakery_Low")
         material.use_nodes = True
         data.materials.append(material)
         return material
@@ -599,14 +599,14 @@ def _restore_scene_settings(scene, saved):
 
 
 class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
-    bl_idname = "dummybake.texture_set_add"
+    bl_idname = "bakery.texture_set_add"
     bl_label = "Add Texture Set"
     bl_description = "Add a new texture set"
 
     # add a new texture set.
     def execute(self, context):
         # add a new texture set and make it active.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         item = data.texture_sets.add()
         item.name = f"Texture Set {len(data.texture_sets)}"
         data.active_texture_index = len(data.texture_sets) - 1
@@ -614,14 +614,14 @@ class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
-    bl_idname = "dummybake.texture_set_remove"
+    bl_idname = "bakery.texture_set_remove"
     bl_label = "Remove Texture Set"
     bl_description = "Remove the selected texture set"
 
     # remove the active texture set.
     def execute(self, context):
         # remove the active texture set safely.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         index = data.active_texture_index
         if 0 <= index < len(data.texture_sets):
             data.texture_sets.remove(index)
@@ -633,14 +633,14 @@ class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
-    bl_idname = "dummybake.low_poly_add"
+    bl_idname = "bakery.low_poly_add"
     bl_label = "Add Low Poly"
     bl_description = "Add a low poly entry to the selected texture set"
 
     # add selected objects to the low poly list.
     def execute(self, context):
         # add selected objects as low polys.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
@@ -663,14 +663,14 @@ class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
-    bl_idname = "dummybake.low_poly_remove"
+    bl_idname = "bakery.low_poly_remove"
     bl_label = "Remove Low Poly"
     bl_description = "Remove the selected low poly entry"
 
     # remove the active low poly entry.
     def execute(self, context):
         # remove the active low poly entry.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
@@ -685,14 +685,14 @@ class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
-    bl_idname = "dummybake.high_poly_add"
+    bl_idname = "bakery.high_poly_add"
     bl_label = "Add High Poly"
     bl_description = "Add a high poly entry to the selected low poly"
 
     # add selected objects to the high poly list.
     def execute(self, context):
         # add selected objects as high polys.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
@@ -718,14 +718,14 @@ class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
-    bl_idname = "dummybake.high_poly_remove"
+    bl_idname = "bakery.high_poly_remove"
     bl_label = "Remove High Poly"
     bl_description = "Remove the selected high poly entry"
 
     # remove the active high poly entry.
     def execute(self, context):
         # remove the active high poly entry.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
@@ -743,7 +743,7 @@ class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_select_object(bpy.types.Operator):
-    bl_idname = "dummybake.select_object"
+    bl_idname = "bakery.select_object"
     bl_label = "Select Object"
     bl_description = "Select the object from this list item"
 
@@ -759,7 +759,7 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
     # sync list selection with the scene selection.
     def invoke(self, context, event):
         # sync list selection and optionally select the object in the scene.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if self.list_kind == "LOW":
             if not data.texture_sets or data.active_texture_index < 0:
                 return {"CANCELLED"}
@@ -791,7 +791,7 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
-    bl_idname = "dummybake.clear_selection"
+    bl_idname = "bakery.clear_selection"
     bl_label = "Clear Selection"
     bl_description = "Clear the active list selection"
 
@@ -806,7 +806,7 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
     # clear list selections.
     def execute(self, context):
         # clear list selections without touching the objects.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if self.list_kind == "TEXTURE":
             data.active_texture_index = -1
             return {"FINISHED"}
@@ -829,7 +829,7 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
-    bl_idname = "dummybake.bake_all"
+    bl_idname = "bakery.bake_all"
     bl_label = "Bake All"
     bl_description = "Bake all texture sets"
 
@@ -837,7 +837,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     def execute(self, context):
         # bake every texture set in order.
         # route to the shared bake pipeline for all texture sets.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if not data.texture_sets:
             self.report({"WARNING"}, "No texture sets to bake")
             return {"CANCELLED"}
@@ -847,7 +847,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
-    bl_idname = "dummybake.bake_selected_set"
+    bl_idname = "bakery.bake_selected_set"
     bl_label = "Bake Selected Set"
     bl_description = "Bake the active texture set"
 
@@ -855,7 +855,7 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     def execute(self, context):
         # bake only the currently active texture set.
         # route to the shared bake pipeline for just the active set.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         index = data.active_texture_index
         if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
             self.report({"WARNING"}, "No texture set selected")
@@ -870,7 +870,7 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
 
 
 class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
-    bl_idname = "dummybake.pick_output_dir"
+    bl_idname = "bakery.pick_output_dir"
     bl_label = "Pick Output Folder"
     bl_description = "Choose a subfolder relative to the current blend file"
 
@@ -879,7 +879,7 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
     # open the file picker at the current output folder.
     def invoke(self, context, event):
         # open the folder picker at the current output location.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         base_dir = bpy.path.abspath("//")
         current = _resolve_output_dir(data.output_dir)
         target = current if current else base_dir
@@ -895,7 +895,7 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
     # store the chosen folder as a relative path.
     def execute(self, context):
         # store the picked folder as a blend-relative path.
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         if self.directory:
             data.output_dir = _relative_to_blend(self.directory)
         return {"FINISHED"}
@@ -903,13 +903,13 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
 
 # hide the last-bake banner when the user dismisses it.
 class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
-    bl_idname = "dummybake.hide_last_bake"
+    bl_idname = "bakery.hide_last_bake"
     bl_label = "Hide Last Bake"
     bl_description = "Hide the last bake message"
 
     # toggle off the last-bake banner.
     def execute(self, context):
-        data = context.scene.dummy_bake_data
+        data = context.scene.bakery_data
         data.show_last_bake = False
         return {"FINISHED"}
 
@@ -918,7 +918,7 @@ class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
 # bake one or more texture sets with shared logic.
 def _bake_texture_sets(operator, context, texture_sets, label):
     # Main bake entry point used by both "Bake All" and "Bake Selected Set".
-    data = context.scene.dummy_bake_data
+    data = context.scene.bakery_data
     material = _load_highpoly_material()
     if not material:
         operator.report({"WARNING"}, "Missing high poly material")
@@ -1180,7 +1180,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     data.last_bake_duration = f"{minutes}m {seconds}s"
     data.show_last_bake = True
     message = f"{label} finished in {elapsed:.2f}s"
-    print(f"DummyBake: {message}")
+    print(f"Bakery: {message}")
     operator.report({"INFO"}, message)
     return True
 

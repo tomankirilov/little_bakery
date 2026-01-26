@@ -29,16 +29,16 @@ def _normalize_output_dir(self, context):
     self.output_dir = value
 
 
-class DummyBakeHighPolyItem(bpy.types.PropertyGroup):
+class BakeryHighPolyItem(bpy.types.PropertyGroup):
     # keep high-poly entries lightweight; color_attribute is optional.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     color_attribute: bpy.props.StringProperty(name="Color Attribute", default="")
 
 
-class DummyBakeLowPolyItem(bpy.types.PropertyGroup):
+class BakeryLowPolyItem(bpy.types.PropertyGroup):
     # store per-low-poly cage settings here so each low poly can override.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
-    high_polys: bpy.props.CollectionProperty(type=DummyBakeHighPolyItem)
+    high_polys: bpy.props.CollectionProperty(type=BakeryHighPolyItem)
     active_high_index: bpy.props.IntProperty(default=-1)
     cage_object: bpy.props.PointerProperty(type=bpy.types.Object)
     use_cage: bpy.props.BoolProperty(name="Cage", default=False)
@@ -51,10 +51,10 @@ class DummyBakeLowPolyItem(bpy.types.PropertyGroup):
     )
 
 
-class DummyBakeTextureSet(bpy.types.PropertyGroup):
+class BakeryTextureSet(bpy.types.PropertyGroup):
     # group bake targets and their settings per texture set for overrides.
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
-    low_polys: bpy.props.CollectionProperty(type=DummyBakeLowPolyItem)
+    low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
     size: bpy.props.IntVectorProperty(
@@ -101,9 +101,9 @@ class DummyBakeTextureSet(bpy.types.PropertyGroup):
     color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
 
 
-class DummyBakeData(bpy.types.PropertyGroup):
+class BakeryData(bpy.types.PropertyGroup):
     # centralize global settings here so the UI and bake logic share data.
-    texture_sets: bpy.props.CollectionProperty(type=DummyBakeTextureSet)
+    texture_sets: bpy.props.CollectionProperty(type=BakeryTextureSet)
     active_texture_index: bpy.props.IntProperty(default=-1)
     show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=False)
     show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=False)
@@ -225,10 +225,10 @@ class DummyBakeData(bpy.types.PropertyGroup):
 
 
 classes = (
-    DummyBakeHighPolyItem,
-    DummyBakeLowPolyItem,
-    DummyBakeTextureSet,
-    DummyBakeData,
+    BakeryHighPolyItem,
+    BakeryLowPolyItem,
+    BakeryTextureSet,
+    BakeryData,
 )
 
 
@@ -237,12 +237,12 @@ def register():
     # register the property groups and attach them to the Scene.
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.dummy_bake_data = bpy.props.PointerProperty(type=DummyBakeData)
+    bpy.types.Scene.bakery_data = bpy.props.PointerProperty(type=BakeryData)
 
 
 # unregister property groups and remove the Scene pointer.
 def unregister():
     # remove the Scene pointer and unregister classes in reverse.
-    del bpy.types.Scene.dummy_bake_data
+    del bpy.types.Scene.bakery_data
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
