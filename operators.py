@@ -1041,6 +1041,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         if item.object and item.object.type == "MESH"
                     ]
                     high_objs = [item.object for item in high_items]
+                    if not high_objs:
+                        # If there is no high poly, I bake the low poly with the baker material itself.
+                        _ensure_material_slot(low_obj, material)
                     if target_name == "color_attribute":
                         # Override the high poly material per-object to inject the attribute name.
                         for item in high_items:
