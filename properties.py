@@ -115,6 +115,12 @@ class DummyBakeData(bpy.types.PropertyGroup):
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
     show_bake_targets: bpy.props.BoolProperty(name="Show Bake Targets", default=False)
     show_about: bpy.props.BoolProperty(name="Show About", default=False)
+    is_baking: bpy.props.BoolProperty(name="Is Baking", default=False)
+    baking_set_name: bpy.props.StringProperty(name="Baking Set", default="")
+    baking_target_name: bpy.props.StringProperty(name="Baking Target", default="")
+    baking_progress: bpy.props.FloatProperty(name="Baking Progress", default=0.0, min=0.0, max=1.0)
+    last_bake_duration: bpy.props.StringProperty(name="Last Bake Duration", default="")
+    show_last_bake: bpy.props.BoolProperty(name="Show Last Bake", default=True)
     render_device: bpy.props.EnumProperty(
         name="Render Device",
         items=[

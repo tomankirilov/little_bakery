@@ -109,6 +109,27 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         layout = self.layout
         data = context.scene.dummy_bake_data
 
+        if data.is_baking:
+            progress_box = layout.box()
+            title_row = progress_box.row()
+            title_row.alignment = "CENTER"
+            title_row.label(text="BAKING IN PROGRESS", icon="ERROR")
+            info_col = progress_box.column(align=True)
+            info_col.label(text=f"- Set: {data.baking_set_name}")
+            info_col.label(text=f"- Target: {data.baking_target_name}")
+            progress_box.prop(data, "baking_progress", text="Progress", slider=True)
+            return
+
+        if data.last_bake_duration and data.show_last_bake:
+            last_box = layout.box()
+            row = last_box.row()
+            row.alignment = "CENTER"
+            row.operator(
+                "dummybake.hide_last_bake",
+                text=f"Bake Completed in {data.last_bake_duration}",
+                emboss=False,
+            )
+
         about_box = layout.box()
         header = about_box.row(align=True)
         header.prop(
@@ -123,7 +144,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             about_col = about_box.column(align=True)
             label_row = about_col.row()
             label_row.alignment = "CENTER"
-            label_row.label(text="🥐 Baked with love for everybody!")
+            label_row.label(text="Baked with love for everybody!")
             row = about_col.row(align=True)
             row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
             row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"

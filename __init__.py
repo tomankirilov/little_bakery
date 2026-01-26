@@ -26,6 +26,11 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
         description="Print detailed bake progress to the console",
         default=False,
     )
+    save_before_bake: bpy.props.BoolProperty(
+        name="Save blend file before bake",
+        description="Save the current .blend before starting a bake",
+        default=False,
+    )
 
     # Draw Preferences UI.
     def draw(self, context):
@@ -35,6 +40,7 @@ class DummyBakePreferences(bpy.types.AddonPreferences):
         row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
         row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
         layout.prop(self, "debug_logging")
+        layout.prop(self, "save_before_bake")
 
 _modules = (properties, operators, ui)
 

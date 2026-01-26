@@ -49,11 +49,28 @@ def _debug_log(context, message):
     if prefs and getattr(prefs, "debug_logging", False):
         print(f"DummyBake: {message}")
 
+# Force the UI to redraw so the panel updates while baking.
+def _tag_redraw(context):
+    # I refresh the 3D View sidebar while we bake.
+    wm = getattr(context, "window_manager", None)
+    if not wm:
+        return
+    for window in wm.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
+    try:
+        bpy.ops.wm.redraw_timer(type="DRAW_WIN_SWAP", iterations=1)
+    except RuntimeError:
+        pass
+
+
 # Show progress text and log it.
 def _progress(operator, context, message):
     # progress notification in Blender;s status bar.
     operator.report({"INFO"}, message)
     _debug_log(context, message)
+    _tag_redraw(context)
 
 # Load the high poly material from the blend file.
 def _load_highpoly_material():
@@ -887,6 +904,19 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# I hide the last-bake banner when the user dismisses it.
+class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
+    bl_idname = "dummybake.hide_last_bake"
+    bl_label = "Hide Last Bake"
+    bl_description = "Hide the last bake message"
+
+    # I toggle off the last-bake banner.
+    def execute(self, context):
+        data = context.scene.dummy_bake_data
+        data.show_last_bake = False
+        return {"FINISHED"}
+
+
 # I run the full bake pipeline for one or more texture sets.
 # I bake one or more texture sets with shared logic.
 def _bake_texture_sets(operator, context, texture_sets, label):
@@ -897,12 +927,27 @@ def _bake_texture_sets(operator, context, texture_sets, label):
         operator.report({"WARNING"}, "Missing high poly material")
         return False
 
+    prefs = _get_addon_prefs(context)
+    if prefs and getattr(prefs, "save_before_bake", False):
+        try:
+            bpy.ops.wm.save_mainfile()
+            _debug_log(context, "Saved blend file before bake")
+        except RuntimeError:
+            operator.report({"WARNING"}, "Failed to save .blend before bake")
+
     scene = context.scene
     cycles = scene.cycles
     bake = scene.render.bake
     view_layer = context.view_layer
 
     saved = _capture_scene_settings(scene)
+    data.is_baking = True
+    data.baking_set_name = ""
+    data.baking_target_name = ""
+    data.baking_progress = 0.0
+    data.last_bake_duration = ""
+    data.show_last_bake = False
+    _tag_redraw(context)
     created_materials = []
     created_node_groups = []
     start_time = time.perf_counter()
@@ -927,6 +972,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             if not tex_set.low_polys:
                 _debug_log(context, f"Skipping texture set '{tex_set.name}' (no low polys)")
                 continue
+            data.baking_set_name = tex_set.name
 
             saved_materials = {}
             color_attribute_materials = {}
@@ -957,6 +1003,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if wm:
                     wm.progress_update(progress_value)
                 target_label = _TARGET_LABELS.get(target_name, target_name)
+                data.baking_target_name = target_label
+                data.baking_progress = progress_value / progress_total
                 _progress(operator, context, f"{label}: {tex_set.name} - {target_label}")
 
                 image = _make_image(f"{tex_set.name}{suffix}", bake_resolution[0], bake_resolution[1])
@@ -1102,6 +1150,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
     finally:
+        data.is_baking = False
+        data.baking_set_name = ""
+        data.baking_target_name = ""
+        data.baking_progress = 0.0
+        _tag_redraw(context)
         # I always clean up progress bars and any temporary data.
         if wm:
             wm.progress_end()
@@ -1118,6 +1171,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 pass
 
     elapsed = time.perf_counter() - start_time
+    minutes, seconds = divmod(int(elapsed), 60)
+    data.last_bake_duration = f"{minutes}m {seconds}s"
+    data.show_last_bake = True
     message = f"{label} finished in {elapsed:.2f}s"
     print(f"DummyBake: {message}")
     operator.report({"INFO"}, message)
@@ -1136,6 +1192,7 @@ classes = (
     DUMMYBAKE_OT_bake_all,
     DUMMYBAKE_OT_bake_selected_set,
     DUMMYBAKE_OT_pick_output_dir,
+    DUMMYBAKE_OT_hide_last_bake,
 )
 
 
