@@ -18,7 +18,6 @@ _BAKE_MODE_MAP = {
 }
 _TARGET_LABELS = {
     "normal": "normal",
-    "normals_ws": "object_space_normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
     "thickness": "thickness",
@@ -28,7 +27,6 @@ _TARGET_LABELS = {
     "color_attribute": "color_attribute",
     "random_island": "random_island",
 }
-_TARGET_NAME_SEPARATOR = "_"
 
 # Grab addon preferences if they exist (read debug)
 def _get_addon_prefs(context):
@@ -38,8 +36,21 @@ def _get_addon_prefs(context):
     prefs = getattr(context, "preferences", None)
     if not prefs:
         return None
-    addon = prefs.addons.get(__package__)
-    return addon.preferences if addon else None
+    root_package = __package__.split(".")[0] if __package__ else ""
+    candidates = [root_package, "dummy_bake_tools", "bakery"]
+    for key in candidates:
+        if not key:
+            continue
+        addon = prefs.addons.get(key)
+        if addon and addon.preferences:
+            return addon.preferences
+    for addon in prefs.addons.values():
+        prefs_obj = getattr(addon, "preferences", None)
+        if not prefs_obj:
+            continue
+        if hasattr(prefs_obj, "name_separator") and hasattr(prefs_obj, "debug_logging"):
+            return prefs_obj
+    return None
 
 # Print debug messages only when logging is enabled.
 def _debug_log(context, message):
@@ -96,11 +107,19 @@ def _load_highpoly_material():
     material = bpy.data.materials.get(_HIGH_MATERIAL_NAME)
     if material:
         return material
-    blend_path = os.path.join(os.path.dirname(__file__), "bakery_data.blend")
-    if os.path.exists(blend_path):
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "bakery_data.blend"),
+        os.path.join(base_dir, "bakery_data.blend"),
+    ]
+    for path in candidates:
+        blend_path = os.path.normpath(path)
+        if not os.path.exists(blend_path):
+            continue
         with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
             if _HIGH_MATERIAL_NAME in data_from.materials:
                 data_to.materials = [_HIGH_MATERIAL_NAME]
+                break
     return bpy.data.materials.get(_HIGH_MATERIAL_NAME)
 
 # Set the high poly material to the needed bake mode.
@@ -417,7 +436,11 @@ def _target_texture_name(tex_set, item):
     target_name = _target_display_name(item)
     if not target_name:
         return tex_set.name
-    return f"{tex_set.name}{_TARGET_NAME_SEPARATOR}{target_name}"
+    prefs = _get_addon_prefs(bpy.context)
+    separator = getattr(prefs, "name_separator", "_") if prefs else "_"
+    separator = separator if separator else "_"
+    _debug_log(bpy.context, f"Name separator in use: '{separator}'")
+    return f"{tex_set.name}{separator}{target_name}"
 
 # convert the MSAA choice into a numeric scale factor.
 def _msaa_factor(value):
@@ -462,14 +485,6 @@ def _prepare_bake_target(item, material, cycles, bake):
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
         bake.normal_space = item.normal_space
-        bake.normal_r = item.normal_r
-        bake.normal_g = item.normal_g
-        bake.normal_b = item.normal_b
-        return False
-    if target_name == "normals_ws":
-        cycles.samples = 1
-        cycles.bake_type = "NORMAL"
-        bake.normal_space = "OBJECT"
         bake.normal_r = item.normal_r
         bake.normal_g = item.normal_g
         bake.normal_b = item.normal_b
@@ -605,508 +620,6 @@ def _restore_scene_settings(scene, saved):
     bake.normal_b = saved["normal_b"]
 
 
-class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
-    bl_idname = "bakery.texture_set_add"
-    bl_label = "Add Texture Set"
-    bl_description = "Add a new texture set"
-
-    # add a new texture set.
-    def execute(self, context):
-        # add a new texture set and make it active.
-        data = context.scene.bakery_data
-        item = data.texture_sets.add()
-        item.name = f"texture_set_{len(data.texture_sets)}"
-        data.active_texture_index = len(data.texture_sets) - 1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
-    bl_idname = "bakery.texture_set_remove"
-    bl_label = "Remove Texture Set"
-    bl_description = "Remove the selected texture set"
-
-    # remove the active texture set.
-    def execute(self, context):
-        # remove the active texture set safely.
-        data = context.scene.bakery_data
-        index = data.active_texture_index
-        if 0 <= index < len(data.texture_sets):
-            data.texture_sets.remove(index)
-            if data.texture_sets:
-                data.active_texture_index = min(index, len(data.texture_sets) - 1)
-            else:
-                data.active_texture_index = -1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_add"
-    bl_label = "Add Low Poly"
-    bl_description = "Add a low poly entry to the selected texture set"
-
-    # add selected objects to the low poly list.
-    def execute(self, context):
-        # add selected objects as low polys.
-        data = context.scene.bakery_data
-        if not data.texture_sets or data.active_texture_index < 0:
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[data.active_texture_index]
-        selected = [
-            obj for obj in context.selected_objects
-            if obj.type not in _GEOMETRY_SKIP_TYPES
-        ]
-        if selected:
-            existing = {item.object for item in tex_set.low_polys if item.object}
-            for obj in selected:
-                if obj in existing:
-                    continue
-                item = tex_set.low_polys.add()
-                item.object = obj
-            tex_set.active_low_index = max(0, len(tex_set.low_polys) - 1)
-        else:
-            tex_set.low_polys.add()
-            tex_set.active_low_index = len(tex_set.low_polys) - 1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_remove"
-    bl_label = "Remove Low Poly"
-    bl_description = "Remove the selected low poly entry"
-
-    # remove the active low poly entry.
-    def execute(self, context):
-        # remove the active low poly entry.
-        data = context.scene.bakery_data
-        if not data.texture_sets or data.active_texture_index < 0:
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[data.active_texture_index]
-        index = tex_set.active_low_index
-        if 0 <= index < len(tex_set.low_polys):
-            tex_set.low_polys.remove(index)
-            if tex_set.low_polys:
-                tex_set.active_low_index = min(index, len(tex_set.low_polys) - 1)
-            else:
-                tex_set.active_low_index = -1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_add"
-    bl_label = "Add High Poly"
-    bl_description = "Add a high poly entry to the selected low poly"
-
-    # add selected objects to the high poly list.
-    def execute(self, context):
-        # add selected objects as high polys.
-        data = context.scene.bakery_data
-        if not data.texture_sets or data.active_texture_index < 0:
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
-            return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
-        selected = [
-            obj for obj in context.selected_objects
-            if obj.type not in _GEOMETRY_SKIP_TYPES
-        ]
-        if selected:
-            existing = {item.object for item in low_item.high_polys if item.object}
-            for obj in selected:
-                if obj in existing:
-                    continue
-                item = low_item.high_polys.add()
-                item.object = obj
-            low_item.active_high_index = max(0, len(low_item.high_polys) - 1)
-        else:
-            low_item.high_polys.add()
-            low_item.active_high_index = len(low_item.high_polys) - 1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_remove"
-    bl_label = "Remove High Poly"
-    bl_description = "Remove the selected high poly entry"
-
-    # remove the active high poly entry.
-    def execute(self, context):
-        # remove the active high poly entry.
-        data = context.scene.bakery_data
-        if not data.texture_sets or data.active_texture_index < 0:
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
-            return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
-        index = low_item.active_high_index
-        if 0 <= index < len(low_item.high_polys):
-            low_item.high_polys.remove(index)
-            if low_item.high_polys:
-                low_item.active_high_index = min(index, len(low_item.high_polys) - 1)
-            else:
-                low_item.active_high_index = -1
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_select_object(bpy.types.Operator):
-    bl_idname = "bakery.select_object"
-    bl_label = "Select Object"
-    bl_description = "Select the object from this list item"
-
-    object_name: bpy.props.StringProperty()
-    list_kind: bpy.props.EnumProperty(
-        items=[
-            ("LOW", "Low Poly", ""),
-            ("HIGH", "High Poly", ""),
-        ]
-    )
-    item_index: bpy.props.IntProperty()
-
-    # sync list selection with the scene selection.
-    def invoke(self, context, event):
-        # sync list selection and optionally select the object in the scene.
-        data = context.scene.bakery_data
-        if self.list_kind == "LOW":
-            if not data.texture_sets or data.active_texture_index < 0:
-                return {"CANCELLED"}
-            tex_set = data.texture_sets[data.active_texture_index]
-            tex_set.active_low_index = self.item_index
-        elif self.list_kind == "HIGH":
-            if not data.texture_sets or data.active_texture_index < 0:
-                return {"CANCELLED"}
-            tex_set = data.texture_sets[data.active_texture_index]
-            if not tex_set.low_polys or tex_set.active_low_index < 0:
-                return {"CANCELLED"}
-            low_item = tex_set.low_polys[tex_set.active_low_index]
-            low_item.active_high_index = self.item_index
-
-        if not event.ctrl:
-            return {"FINISHED"}
-
-        obj = context.scene.objects.get(self.object_name)
-        if not obj:
-            return {"CANCELLED"}
-        if event.shift:
-            obj.select_set(True)
-        else:
-            for other in context.view_layer.objects:
-                other.select_set(False)
-            obj.select_set(True)
-        context.view_layer.objects.active = obj
-        return {"FINISHED"}
-
-
-class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
-    bl_idname = "bakery.clear_selection"
-    bl_label = "Clear Selection"
-    bl_description = "Clear the active list selection"
-
-    list_kind: bpy.props.EnumProperty(
-        items=[
-            ("TEXTURE", "Texture Sets", ""),
-            ("LOW", "Low Poly", ""),
-            ("HIGH", "High Poly", ""),
-        ]
-    )
-
-    # clear list selections.
-    def execute(self, context):
-        # clear list selections without touching the objects.
-        data = context.scene.bakery_data
-        if self.list_kind == "TEXTURE":
-            data.active_texture_index = -1
-            return {"FINISHED"}
-        if self.list_kind == "LOW":
-            if not data.texture_sets or data.active_texture_index < 0:
-                return {"CANCELLED"}
-            tex_set = data.texture_sets[data.active_texture_index]
-            tex_set.active_low_index = -1
-            return {"FINISHED"}
-        if self.list_kind == "HIGH":
-            if not data.texture_sets or data.active_texture_index < 0:
-                return {"CANCELLED"}
-            tex_set = data.texture_sets[data.active_texture_index]
-            if not tex_set.low_polys or tex_set.active_low_index < 0:
-                return {"CANCELLED"}
-            low_item = tex_set.low_polys[tex_set.active_low_index]
-            low_item.active_high_index = -1
-            return {"FINISHED"}
-        return {"CANCELLED"}
-
-
-class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
-    bl_idname = "bakery.bake_all"
-    bl_label = "Bake"
-    bl_description = "Bake the checked texture sets"
-
-    # bake the checked texture sets.
-    def execute(self, context):
-        # bake the checked texture sets in order.
-        # route to the shared bake pipeline for checked sets.
-        if not _ensure_saved_blend(self, context):
-            return {"CANCELLED"}
-        data = context.scene.bakery_data
-        if not data.texture_sets:
-            self.report({"WARNING"}, "No texture sets to bake")
-            return {"CANCELLED"}
-
-        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
-        if not selected_sets:
-            _popup_error(context, "Please check at least one texture set")
-            self.report({"WARNING"}, "Please check at least one texture set")
-            return {"CANCELLED"}
-        result = _bake_texture_sets(self, context, selected_sets, "Bake")
-        return {"FINISHED"} if result else {"CANCELLED"}
-
-
-class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
-    bl_idname = "bakery.bake_selected_set"
-    bl_label = "Bake Selected Sets"
-    bl_description = "Deprecated"
-
-    # deprecated entry point (kept for safety if wired elsewhere).
-    def execute(self, context):
-        _popup_error(context, "Use the Bake button instead")
-        self.report({"WARNING"}, "Use the Bake button instead")
-        return {"CANCELLED"}
-
-
-class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
-    bl_idname = "bakery.pick_output_dir"
-    bl_label = "Pick Output Folder"
-    bl_description = "Choose a subfolder relative to the current blend file"
-
-    directory: bpy.props.StringProperty(subtype="DIR_PATH")
-
-    # open the file picker at the current output folder.
-    def invoke(self, context, event):
-        # open the folder picker at the current output location.
-        data = context.scene.bakery_data
-        base_dir = bpy.path.abspath("//")
-        current = _resolve_output_dir(data.output_dir)
-        target = current if current else base_dir
-        if target and not os.path.isdir(target):
-            try:
-                os.makedirs(target, exist_ok=True)
-            except OSError:
-                target = base_dir
-        self.directory = target
-        context.window_manager.fileselect_add(self)
-        return {"RUNNING_MODAL"}
-
-    # store the chosen folder as a relative path.
-    def execute(self, context):
-        # store the picked folder as a blend-relative path.
-        data = context.scene.bakery_data
-        if self.directory:
-            data.output_dir = _relative_to_blend(self.directory)
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_add_global(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_add_global"
-    bl_label = "Add Bake Target"
-    bl_description = "Add a global bake target"
-
-    target_type: bpy.props.EnumProperty(
-        name="Target",
-        items=[
-            ("normal", "Normal", ""),
-            ("normals_ws", "Object Space Normal", ""),
-            ("ambient_occlusion", "Ambient Occlusion", ""),
-            ("curvature", "Curvature", ""),
-            ("thickness", "Thickness", ""),
-            ("position", "Position", ""),
-            ("bakery_position", "Bakery Position", ""),
-            ("custom", "Custom", ""),
-            ("color_attribute", "Color Attribute", ""),
-            ("random_island", "Random Island", ""),
-        ],
-        default="ambient_occlusion",
-    )
-
-    # show a popup to pick the target type.
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-    # draw the popup UI.
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "target_type", text="")
-
-    # add a new global bake target entry.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        item = data.global_bake_targets.add()
-        data.active_global_bake_target_index = len(data.global_bake_targets) - 1
-        item.target_type = self.target_type
-        item.name = _TARGET_LABELS.get(item.target_type, item.target_type)
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_remove_global(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_remove_global"
-    bl_label = "Remove Bake Target"
-    bl_description = "Remove the selected global bake target"
-
-    # remove the active global bake target entry.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_global_bake_target_index
-        if 0 <= index < len(data.global_bake_targets):
-            data.global_bake_targets.remove(index)
-            data.active_global_bake_target_index = min(index, len(data.global_bake_targets) - 1)
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_move_global_up(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_move_global_up"
-    bl_label = "Move Bake Target Up"
-    bl_description = "Move the selected global bake target up"
-
-    # move the active global bake target up in the list.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_global_bake_target_index
-        if index > 0:
-            data.global_bake_targets.move(index, index - 1)
-            data.active_global_bake_target_index = index - 1
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_move_global_down(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_move_global_down"
-    bl_label = "Move Bake Target Down"
-    bl_description = "Move the selected global bake target down"
-
-    # move the active global bake target down in the list.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_global_bake_target_index
-        if 0 <= index < len(data.global_bake_targets) - 1:
-            data.global_bake_targets.move(index, index + 1)
-            data.active_global_bake_target_index = index + 1
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_add_set(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_add_set"
-    bl_label = "Add Bake Target"
-    bl_description = "Add a bake target to the active texture set"
-
-    target_type: bpy.props.EnumProperty(
-        name="Target",
-        items=[
-            ("normal", "Normal", ""),
-            ("normals_ws", "Object Space Normal", ""),
-            ("ambient_occlusion", "Ambient Occlusion", ""),
-            ("curvature", "Curvature", ""),
-            ("thickness", "Thickness", ""),
-            ("position", "Position", ""),
-            ("bakery_position", "Bakery Position", ""),
-            ("custom", "Custom", ""),
-            ("color_attribute", "Color Attribute", ""),
-            ("random_island", "Random Island", ""),
-        ],
-        default="ambient_occlusion",
-    )
-
-    # show a popup to pick the target type.
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-    # draw the popup UI.
-    def draw(self, context):
-        layout = self.layout
-        layout.prop(self, "target_type", text="")
-
-    # add a new bake target entry to the active set.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[index]
-        item = tex_set.bake_targets.add()
-        tex_set.active_bake_target_index = len(tex_set.bake_targets) - 1
-        item.target_type = self.target_type
-        item.name = _TARGET_LABELS.get(item.target_type, item.target_type)
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_remove_set(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_remove_set"
-    bl_label = "Remove Bake Target"
-    bl_description = "Remove the selected bake target from the active texture set"
-
-    # remove the active bake target from the set.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[index]
-        target_index = tex_set.active_bake_target_index
-        if 0 <= target_index < len(tex_set.bake_targets):
-            tex_set.bake_targets.remove(target_index)
-            tex_set.active_bake_target_index = min(target_index, len(tex_set.bake_targets) - 1)
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_move_set_up(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_move_set_up"
-    bl_label = "Move Bake Target Up"
-    bl_description = "Move the selected bake target up in the active set"
-
-    # move the active set bake target up in the list.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[index]
-        target_index = tex_set.active_bake_target_index
-        if target_index > 0:
-            tex_set.bake_targets.move(target_index, target_index - 1)
-            tex_set.active_bake_target_index = target_index - 1
-        return {"FINISHED"}
-
-
-class Bakery_OT_bake_target_move_set_down(bpy.types.Operator):
-    bl_idname = "bakery.bake_target_move_set_down"
-    bl_label = "Move Bake Target Down"
-    bl_description = "Move the selected bake target down in the active set"
-
-    # move the active set bake target down in the list.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            return {"CANCELLED"}
-        tex_set = data.texture_sets[index]
-        target_index = tex_set.active_bake_target_index
-        if 0 <= target_index < len(tex_set.bake_targets) - 1:
-            tex_set.bake_targets.move(target_index, target_index + 1)
-            tex_set.active_bake_target_index = target_index + 1
-        return {"FINISHED"}
-
-
-# hide the last-bake banner when the user dismisses it.
-class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
-    bl_idname = "bakery.hide_last_bake"
-    bl_label = "Hide Last Bake"
-    bl_description = "Hide the last bake message"
-
-    # toggle off the last-bake banner.
-    def execute(self, context):
-        data = context.scene.bakery_data
-        data.show_last_bake = False
-        return {"FINISHED"}
-
-
-# run the full bake pipeline for one or more texture sets.
-# bake one or more texture sets with shared logic.
 def _bake_texture_sets(operator, context, texture_sets, label):
     # Main bake entry point used by both "Bake All" and "Bake Selected Set".
     data = context.scene.bakery_data
@@ -1277,7 +790,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for item in high_items:
                             attr_name = (item.color_attribute or "").strip()
                             if not attr_name:
-                                attr_name = item.color_attribute_name
+                                attr_name = "Color"
                             mat = _copy_color_attribute_material(
                                 material,
                                 attr_name,
@@ -1448,37 +961,3 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     return True
 
 
-classes = (
-    DUMMYBAKE_OT_texture_set_add,
-    DUMMYBAKE_OT_texture_set_remove,
-    DUMMYBAKE_OT_low_poly_add,
-    DUMMYBAKE_OT_low_poly_remove,
-    DUMMYBAKE_OT_high_poly_add,
-    DUMMYBAKE_OT_high_poly_remove,
-    DUMMYBAKE_OT_select_object,
-    DUMMYBAKE_OT_clear_selection,
-    DUMMYBAKE_OT_bake_all,
-    DUMMYBAKE_OT_bake_selected_set,
-    DUMMYBAKE_OT_pick_output_dir,
-    DUMMYBAKE_OT_hide_last_bake,
-    Bakery_OT_bake_target_add_global,
-    Bakery_OT_bake_target_remove_global,
-    Bakery_OT_bake_target_move_global_up,
-    Bakery_OT_bake_target_move_global_down,
-    Bakery_OT_bake_target_add_set,
-    Bakery_OT_bake_target_remove_set,
-    Bakery_OT_bake_target_move_set_up,
-    Bakery_OT_bake_target_move_set_down,
-)
-
-
-# register all operator classes.
-def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-# unregister operator classes in reverse order.
-def unregister():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
