@@ -202,9 +202,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             )
 
         buttons_col = layout.column(align=True)
-        buttons_col.operator("bakery.bake_all", text="Bake All", icon="RENDER_RESULT")
-        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Sets", icon="FILE_IMAGE")
+        buttons_col.scale_y = 2.0
 
+
+        #buttons_col.operator("bakery.bake_all", text="Bake", icon="SEQUENCE")
+        buttons_col.operator("bakery.bake_all", text="Bake")
         global_box = layout.box()
         header = global_box.row(align=True)
         header.scale_y = 1.4
@@ -243,10 +245,15 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 col = row.column(align=True)
                 col.operator("bakery.bake_target_add_global", icon="ADD", text="")
                 col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
+                col.separator()
+                col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
+                col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
 
                 if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
                     item = data.global_bake_targets[data.active_global_bake_target_index]
-                    settings_col = _indent_column(bake_col)
+                    settings_col = bake_col.column(align=True)
+                    settings_col.separator()
+                    settings_col.label(text="Target Settings:")
                     _draw_bake_target_settings(settings_col, item)
 
             header = sections.row(align=True)
@@ -356,9 +363,14 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     col = list_row.column(align=True)
                     col.operator("bakery.bake_target_add_set", icon="ADD", text="")
                     col.operator("bakery.bake_target_remove_set", icon="REMOVE", text="")
+                    col.separator()
+                    col.operator("bakery.bake_target_move_set_up", icon="TRIA_UP", text="")
+                    col.operator("bakery.bake_target_move_set_down", icon="TRIA_DOWN", text="")
                     if tex_set.bake_targets and 0 <= tex_set.active_bake_target_index < len(tex_set.bake_targets):
                         item = tex_set.bake_targets[tex_set.active_bake_target_index]
-                        settings_col = _indent_column(row)
+                        settings_col = row.column(align=True)
+                        settings_col.separator()
+                        settings_col.label(text="Target Settings:")
                         _draw_bake_target_settings(settings_col, item)
 
         if not tex_set:

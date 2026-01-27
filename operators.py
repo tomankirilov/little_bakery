@@ -803,13 +803,13 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
 
 class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     bl_idname = "bakery.bake_all"
-    bl_label = "Bake All"
-    bl_description = "Bake all texture sets"
+    bl_label = "Bake"
+    bl_description = "Bake the checked texture sets"
 
-    # bake every texture set.
+    # bake the checked texture sets.
     def execute(self, context):
-        # bake every texture set in order.
-        # route to the shared bake pipeline for all texture sets.
+        # bake the checked texture sets in order.
+        # route to the shared bake pipeline for checked sets.
         if not _ensure_saved_blend(self, context):
             return {"CANCELLED"}
         data = context.scene.bakery_data
@@ -817,37 +817,25 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
             self.report({"WARNING"}, "No texture sets to bake")
             return {"CANCELLED"}
 
-        result = _bake_texture_sets(self, context, data.texture_sets, "Bake All")
+        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
+        if not selected_sets:
+            _popup_error(context, "Please check at least one texture set")
+            self.report({"WARNING"}, "Please check at least one texture set")
+            return {"CANCELLED"}
+        result = _bake_texture_sets(self, context, selected_sets, "Bake")
         return {"FINISHED"} if result else {"CANCELLED"}
 
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_idname = "bakery.bake_selected_set"
     bl_label = "Bake Selected Sets"
-    bl_description = "Bake the checked texture sets"
+    bl_description = "Deprecated"
 
-    # bake only the active texture set.
+    # deprecated entry point (kept for safety if wired elsewhere).
     def execute(self, context):
-        # bake only the currently active texture set.
-        # route to the shared bake pipeline for just the active set.
-        if not _ensure_saved_blend(self, context):
-            return {"CANCELLED"}
-        data = context.scene.bakery_data
-        if not data.texture_sets:
-            self.report({"WARNING"}, "No texture sets available")
-            return {"CANCELLED"}
-        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
-        if not selected_sets:
-            _popup_error(context, "Please check at least one texture set")
-            self.report({"WARNING"}, "Please check at least one texture set")
-            return {"CANCELLED"}
-        result = _bake_texture_sets(
-            self,
-            context,
-            selected_sets,
-            "Bake Selected Sets",
-        )
-        return {"FINISHED"} if result else {"CANCELLED"}
+        _popup_error(context, "Use the Bake button instead")
+        self.report({"WARNING"}, "Use the Bake button instead")
+        return {"CANCELLED"}
 
 
 class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
@@ -911,6 +899,36 @@ class Bakery_OT_bake_target_remove_global(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class Bakery_OT_bake_target_move_global_up(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_global_up"
+    bl_label = "Move Bake Target Up"
+    bl_description = "Move the selected global bake target up"
+
+    # move the active global bake target up in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_global_bake_target_index
+        if index > 0:
+            data.global_bake_targets.move(index, index - 1)
+            data.active_global_bake_target_index = index - 1
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_global_down(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_global_down"
+    bl_label = "Move Bake Target Down"
+    bl_description = "Move the selected global bake target down"
+
+    # move the active global bake target down in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_global_bake_target_index
+        if 0 <= index < len(data.global_bake_targets) - 1:
+            data.global_bake_targets.move(index, index + 1)
+            data.active_global_bake_target_index = index + 1
+        return {"FINISHED"}
+
+
 class Bakery_OT_bake_target_add_set(bpy.types.Operator):
     bl_idname = "bakery.bake_target_add_set"
     bl_label = "Add Bake Target"
@@ -945,6 +963,44 @@ class Bakery_OT_bake_target_remove_set(bpy.types.Operator):
         if 0 <= target_index < len(tex_set.bake_targets):
             tex_set.bake_targets.remove(target_index)
             tex_set.active_bake_target_index = min(target_index, len(tex_set.bake_targets) - 1)
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_set_up(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_set_up"
+    bl_label = "Move Bake Target Up"
+    bl_description = "Move the selected bake target up in the active set"
+
+    # move the active set bake target up in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        target_index = tex_set.active_bake_target_index
+        if target_index > 0:
+            tex_set.bake_targets.move(target_index, target_index - 1)
+            tex_set.active_bake_target_index = target_index - 1
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_set_down(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_set_down"
+    bl_label = "Move Bake Target Down"
+    bl_description = "Move the selected bake target down in the active set"
+
+    # move the active set bake target down in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        target_index = tex_set.active_bake_target_index
+        if 0 <= target_index < len(tex_set.bake_targets) - 1:
+            tex_set.bake_targets.move(target_index, target_index + 1)
+            tex_set.active_bake_target_index = target_index + 1
         return {"FINISHED"}
 
 
@@ -1279,8 +1335,12 @@ classes = (
     DUMMYBAKE_OT_hide_last_bake,
     Bakery_OT_bake_target_add_global,
     Bakery_OT_bake_target_remove_global,
+    Bakery_OT_bake_target_move_global_up,
+    Bakery_OT_bake_target_move_global_down,
     Bakery_OT_bake_target_add_set,
     Bakery_OT_bake_target_remove_set,
+    Bakery_OT_bake_target_move_set_up,
+    Bakery_OT_bake_target_move_set_down,
 )
 
 
