@@ -3,7 +3,6 @@ import bpy
 
 _BAKE_TARGET_LABELS = {
     "normal": "normal",
-    "normals_ws": "object_space_normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
     "thickness": "thickness",
@@ -19,9 +18,7 @@ def _update_target_type(self, context):
     # keep the name in sync when the user hasn't typed a custom one.
     if not (self.name or "").strip():
         self.name = _BAKE_TARGET_LABELS.get(self.target_type, self.target_type)
-    if self.target_type == "normals_ws":
-        self.normal_space = "OBJECT"
-    elif self.target_type == "normal":
+    if self.target_type == "normal":
         self.normal_space = "TANGENT"
 
 
@@ -58,7 +55,6 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
         name="Type",
         items=[
             ("normal", "Normal", ""),
-            ("normals_ws", "Object Space Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
             ("thickness", "Thickness", ""),

@@ -28,6 +28,11 @@ class BakeryPreferences(bpy.types.AddonPreferences):
         description="Save the current .blend before starting a bake",
         default=False,
     )
+    name_separator: bpy.props.StringProperty(
+        name="Name Separator",
+        description="Separator between texture set and bake target names",
+        default="_",
+    )
 
     # Draw Preferences UI.
     def draw(self, context):
@@ -35,6 +40,7 @@ class BakeryPreferences(bpy.types.AddonPreferences):
         layout = self.layout
         layout.prop(self, "debug_logging")
         layout.prop(self, "save_before_bake")
+        layout.prop(self, "name_separator")
         row = layout.row(align=True)
         row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
         row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"

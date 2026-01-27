@@ -7,7 +7,7 @@ from .items import (
     BakeryTextureSet,
 )
 from .settings import BakeryData
-from .defaults import _deferred_defaults, _on_load
+from .defaults import _ensure_defaults_all, _deferred_defaults, _on_load
 
 
 classes = (
@@ -24,10 +24,14 @@ def register():
     # register the property groups and attach them to the Scene.
     for cls in classes:
         if getattr(bpy.types, cls.__name__, None) is None:
-            bpy.utils.register_class(cls)
+            try:
+                bpy.utils.register_class(cls)
+            except Exception:
+                pass
     bpy.types.Scene.bakery_data = bpy.props.PointerProperty(type=BakeryData)
-    if not bpy.app.timers.is_registered(_deferred_defaults):
-        bpy.app.timers.register(_deferred_defaults, first_interval=0.1)
+    if not _ensure_defaults_all():
+        if not bpy.app.timers.is_registered(_deferred_defaults):
+            bpy.app.timers.register(_deferred_defaults, first_interval=0.1)
     if _on_load not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(_on_load)
 
@@ -39,7 +43,11 @@ def unregister():
         bpy.app.handlers.load_post.remove(_on_load)
     if bpy.app.timers.is_registered(_deferred_defaults):
         bpy.app.timers.unregister(_deferred_defaults)
-    del bpy.types.Scene.bakery_data
+    if hasattr(bpy.types.Scene, "bakery_data"):
+        del bpy.types.Scene.bakery_data
     for cls in reversed(classes):
         if getattr(bpy.types, cls.__name__, None) is not None:
-            bpy.utils.unregister_class(cls)
+            try:
+                bpy.utils.unregister_class(cls)
+            except Exception:
+                pass

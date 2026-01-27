@@ -12,17 +12,16 @@ class Bakery_OT_bake_target_add_global(bpy.types.Operator):
         name="Target",
         items=[
             ("normal", "Normal", ""),
-            ("normals_ws", "Object Space Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
-            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
+            ("custom", "Custom", ""),
         ],
-        default="ambient_occlusion",
+        default="normal",
     )
 
     # show a popup to pick the target type.
@@ -98,17 +97,16 @@ class Bakery_OT_bake_target_add_set(bpy.types.Operator):
         name="Target",
         items=[
             ("normal", "Normal", ""),
-            ("normals_ws", "Object Space Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
-            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
+            ("custom", "Custom", ""),
         ],
-        default="ambient_occlusion",
+        default="normal",
     )
 
     # show a popup to pick the target type.

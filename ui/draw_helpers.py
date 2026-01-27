@@ -32,13 +32,10 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "ao_render_samples")
         layout.prop(item, "ao_distance")
         layout.prop(item, "ao_contrast")
-    elif item.target_type in {"normal", "normals_ws"}:
+    elif item.target_type == "normal":
         row = layout.split(factor=0.4, align=True)
         row.label(text="Space")
-        space_row = row.row(align=True)
-        if item.target_type == "normals_ws":
-            space_row.enabled = False
-        space_row.prop(item, "normal_space", text="")
+        row.prop(item, "normal_space", text="")
         row = layout.split(factor=0.4, align=True)
         row.label(text="Swizzle R")
         row.prop(item, "normal_r", text="")

@@ -32,5 +32,6 @@ def _deferred_defaults():
 
 
 def _on_load(_dummy):
-    if not bpy.app.timers.is_registered(_deferred_defaults):
-        bpy.app.timers.register(_deferred_defaults, first_interval=0.1)
+    if not _ensure_defaults_all():
+        if not bpy.app.timers.is_registered(_deferred_defaults):
+            bpy.app.timers.register(_deferred_defaults, first_interval=0.1)

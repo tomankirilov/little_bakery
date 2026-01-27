@@ -22,11 +22,17 @@ classes = (
 def register():
     # register all UI classes.
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception:
+            pass
 
 
 # unregister all UI classes.
 def unregister():
     # unregister UI classes in reverse order.
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception:
+            pass

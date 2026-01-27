@@ -18,7 +18,6 @@ _BAKE_MODE_MAP = {
 }
 _TARGET_LABELS = {
     "normal": "normal",
-    "normals_ws": "object_space_normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
     "thickness": "thickness",
@@ -28,7 +27,6 @@ _TARGET_LABELS = {
     "color_attribute": "color_attribute",
     "random_island": "random_island",
 }
-_TARGET_NAME_SEPARATOR = "_"
 
 # Grab addon preferences if they exist (read debug)
 def _get_addon_prefs(context):
@@ -38,8 +36,21 @@ def _get_addon_prefs(context):
     prefs = getattr(context, "preferences", None)
     if not prefs:
         return None
-    addon = prefs.addons.get(__package__)
-    return addon.preferences if addon else None
+    root_package = __package__.split(".")[0] if __package__ else ""
+    candidates = [root_package, "dummy_bake_tools", "bakery"]
+    for key in candidates:
+        if not key:
+            continue
+        addon = prefs.addons.get(key)
+        if addon and addon.preferences:
+            return addon.preferences
+    for addon in prefs.addons.values():
+        prefs_obj = getattr(addon, "preferences", None)
+        if not prefs_obj:
+            continue
+        if hasattr(prefs_obj, "name_separator") and hasattr(prefs_obj, "debug_logging"):
+            return prefs_obj
+    return None
 
 # Print debug messages only when logging is enabled.
 def _debug_log(context, message):
@@ -425,7 +436,11 @@ def _target_texture_name(tex_set, item):
     target_name = _target_display_name(item)
     if not target_name:
         return tex_set.name
-    return f"{tex_set.name}{_TARGET_NAME_SEPARATOR}{target_name}"
+    prefs = _get_addon_prefs(bpy.context)
+    separator = getattr(prefs, "name_separator", "_") if prefs else "_"
+    separator = separator if separator else "_"
+    _debug_log(bpy.context, f"Name separator in use: '{separator}'")
+    return f"{tex_set.name}{separator}{target_name}"
 
 # convert the MSAA choice into a numeric scale factor.
 def _msaa_factor(value):
@@ -470,14 +485,6 @@ def _prepare_bake_target(item, material, cycles, bake):
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
         bake.normal_space = item.normal_space
-        bake.normal_r = item.normal_r
-        bake.normal_g = item.normal_g
-        bake.normal_b = item.normal_b
-        return False
-    if target_name == "normals_ws":
-        cycles.samples = 1
-        cycles.bake_type = "NORMAL"
-        bake.normal_space = "OBJECT"
         bake.normal_r = item.normal_r
         bake.normal_g = item.normal_g
         bake.normal_b = item.normal_b
@@ -783,7 +790,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for item in high_items:
                             attr_name = (item.color_attribute or "").strip()
                             if not attr_name:
-                                attr_name = item.color_attribute_name
+                                attr_name = "Color"
                             mat = _copy_color_attribute_material(
                                 material,
                                 attr_name,

@@ -336,7 +336,6 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
                 low_item = tex_set.low_polys[tex_set.active_low_index]
-                low_box.label(text="Low Poly Settings")
                 row = low_box.row(align=True)
                 row.prop(
                     low_item,
