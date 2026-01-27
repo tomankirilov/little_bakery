@@ -1,141 +1,6 @@
 import bpy
 
-
-## NOTE: https://docs.blender.org/manual/en/latest/contribute/manual/guides/icons.html
-## Blender icons ^^ 
-
-
-# create a slightly indented column for nested UI sections.
-def _indent_column(layout):
-    # indent groups so nested options are easier to scan.
-    # use this to visually nest settings under foldouts.
-    row = layout.row()
-    row.separator()
-    return row.column(align=True)
-
-
-# draw a resolution row with a label and a field.
-def _draw_resolution_row(layout, obj, prop_name):
-    # draw the resolution in a consistent label/value layout.
-    # keep resolution rows consistent across global and per-set UI.
-    row = layout.split(factor=0.4, align=True)
-    row.label(text="Resolution")
-    row.prop(obj, prop_name, text="")
-
-
-# draw all ambient occlusion settings.
-def _draw_ao_options(layout, obj, prefix):
-    # group all AO settings under the AO toggle.
-    # place AO details under the AO toggle so they stay compact.
-    row = layout.split(factor=0.4, align=True)
-    row.label(text="Mode")
-    row.prop(obj, f"{prefix}ao_occlusion_mode", text="")
-    layout.prop(obj, f"{prefix}ao_samples")
-    layout.prop(obj, f"{prefix}ao_render_samples")
-    layout.prop(obj, f"{prefix}ao_distance")
-    layout.prop(obj, f"{prefix}ao_contrast")
-
-
-# draw all curvature settings.
-def _draw_curvature_options(layout, obj, prefix):
-    # group curvature sliders together.
-    # Curvature needs two sliders, so I group them here.
-    layout.prop(obj, f"{prefix}curvature_exponent")
-    layout.prop(obj, f"{prefix}curvature_contrast")
-
-
-# draw all thickness settings.
-def _draw_thickness_options(layout, obj, prefix):
-    # group thickness sliders together.
-    # Thickness also has multiple fields, so I wrap them in this helper.
-    layout.prop(obj, f"{prefix}thickness_samples")
-    layout.prop(obj, f"{prefix}thickness_render_samples")
-    layout.prop(obj, f"{prefix}thickness_distance")
-
-
-# draw settings for a single bake target item.
-def _draw_bake_target_settings(layout, item):
-    row = layout.split(factor=0.4, align=True)
-    row.label(text="Target")
-    row.prop(item, "target_type", text="")
-    if item.target_type == "ambient_occlusion":
-        row = layout.split(factor=0.4, align=True)
-        row.label(text="Mode")
-        row.prop(item, "ao_occlusion_mode", text="")
-        layout.prop(item, "ao_samples")
-        layout.prop(item, "ao_render_samples")
-        layout.prop(item, "ao_distance")
-        layout.prop(item, "ao_contrast")
-    elif item.target_type in {"normal", "normals_ws"}:
-        row = layout.split(factor=0.4, align=True)
-        row.label(text="Space")
-        space_row = row.row(align=True)
-        if item.target_type == "normals_ws":
-            space_row.enabled = False
-        space_row.prop(item, "normal_space", text="")
-        row = layout.split(factor=0.4, align=True)
-        row.label(text="Swizzle R")
-        row.prop(item, "normal_r", text="")
-        row = layout.split(factor=0.4, align=True)
-        row.label(text="Swizzle G")
-        row.prop(item, "normal_g", text="")
-        row = layout.split(factor=0.4, align=True)
-        row.label(text="Swizzle B")
-        row.prop(item, "normal_b", text="")
-    elif item.target_type == "curvature":
-        layout.prop(item, "curvature_exponent")
-        layout.prop(item, "curvature_contrast")
-    elif item.target_type == "thickness":
-        layout.prop(item, "thickness_samples")
-        layout.prop(item, "thickness_render_samples")
-        layout.prop(item, "thickness_distance")
-    elif item.target_type == "color_attribute":
-        layout.prop(item, "color_attribute_name")
-    elif item.target_type == "custom":
-        layout.prop(item, "custom_material")
-
-
-class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
-    # draw each texture set row.
-    # keep list rows compact: icon + name.
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        row = layout.row(align=True)
-        row.prop(item, "enabled", text="")
-        row.label(icon="IMAGE_DATA")
-        row.prop(item, "name", text="", emboss=False)
-
-
-class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
-    # draw each low poly row.
-    # expose a quick select button and an object search per row.
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        row = layout.row(align=True)
-        op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
-        op.object_name = item.object.name if item.object else ""
-        op.list_kind = "LOW"
-        op.item_index = index
-        row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
-
-
-class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
-    # draw each high poly row.
-    # High polys mirror the low poly list layout for consistency.
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        row = layout.row(align=True)
-        op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
-        op.object_name = item.object.name if item.object else ""
-        op.list_kind = "HIGH"
-        op.item_index = index
-        row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
-
-
-class BAKERY_UL_bake_targets(bpy.types.UIList):
-    # draw each bake target row.
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        row = layout.row(align=True)
-        row.prop(item, "enabled", text="")
-        row.label(icon="IMAGE_PLANE")
-        row.prop(item, "name", text="", emboss=False)
+from .draw_helpers import _indent_column, _draw_resolution_row, _draw_bake_target_settings
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
@@ -145,16 +10,21 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Bakery"
 
-    # draw the main sidebar UI.
     def draw(self, context):
-        # build the sidebar layout from top to bottom.
-        # build the whole sidebar here, starting with About and then Bake.
         layout = self.layout
         data = context.scene.bakery_data
+        if data and (not data.texture_sets or not data.global_bake_targets):
+            try:
+                from ..properties.defaults import _ensure_defaults
+                _ensure_defaults(context.scene)
+            except Exception:
+                pass
 
+        # only show baking progress and about while baking.
         if data.is_baking:
             progress_box = layout.box()
             title_row = progress_box.row()
+            title_row.alert = True
             title_row.alignment = "CENTER"
             title_row.label(text="BAKING IN PROGRESS", icon="ERROR")
             info_col = progress_box.column(align=True)
@@ -164,7 +34,14 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
             about_box = layout.box()
             header = about_box.row(align=True)
-            header.label(text="About")
+            header.prop(
+                data,
+                "show_about",
+                icon="TRIA_DOWN" if data.show_about else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="About", icon="USER")
             about_col = about_box.column(align=True)
             label_row = about_col.row()
             label_row.alignment = "CENTER"
@@ -183,8 +60,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        #header.label(text="About", icon="USER")
-        header.label(text="About")
+        header.label(text="About", icon="USER")
         if data.show_about:
             about_col = about_box.column(align=True)
             label_row = about_col.row()
@@ -194,22 +70,19 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
             row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
 
-        if data.last_bake_duration and data.show_last_bake:
+        if data.show_last_bake and data.last_bake_duration:
             last_box = layout.box()
             row = last_box.row()
             row.alignment = "CENTER"
             row.operator(
                 "bakery.hide_last_bake",
                 text=f"Bake Completed in {data.last_bake_duration}",
-                emboss=False,
             )
 
         buttons_col = layout.column(align=True)
         buttons_col.scale_y = 2.0
+        buttons_col.operator("bakery.bake_all", text="Bake", icon="SEQUENCE")
 
-
-        #buttons_col.operator("bakery.bake_all", text="Bake", icon="SEQUENCE")
-        buttons_col.operator("bakery.bake_all", text="Bake")
         global_box = layout.box()
         header = global_box.row(align=True)
         header.scale_y = 1.4
@@ -535,26 +408,3 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         if data.is_baking:
             return
-
-
-classes = (
-    DUMMYBAKE_UL_texture_sets,
-    DUMMYBAKE_UL_low_polys,
-    DUMMYBAKE_UL_high_polys,
-    BAKERY_UL_bake_targets,
-    DUMMYBAKE_PT_tools,
-)
-
-
-# register all UI classes.
-def register():
-    # register all UI classes.
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-# unregister all UI classes.
-def unregister():
-    # unregister UI classes in reverse order.
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
