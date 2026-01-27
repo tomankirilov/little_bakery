@@ -10,6 +10,7 @@ _BAKE_TARGET_LABELS = {
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
+    "custom": "custom",
     "color_attribute": "color_attribute",
     "random_island": "random_island",
 }
@@ -91,6 +92,7 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
+            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
         ],
@@ -120,6 +122,7 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
     thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
 
     color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
+    custom_material: bpy.props.PointerProperty(name="Material", type=bpy.types.Material)
 
     normal_space: bpy.props.EnumProperty(
         name="Space",

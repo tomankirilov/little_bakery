@@ -91,6 +91,8 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "thickness_distance")
     elif item.target_type == "color_attribute":
         layout.prop(item, "color_attribute_name")
+    elif item.target_type == "custom":
+        layout.prop(item, "custom_material")
 
 
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
