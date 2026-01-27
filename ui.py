@@ -38,7 +38,9 @@ def _draw_custom_suffix(layout, obj, prefix, base):
 def _draw_ao_options(layout, obj, prefix):
     # group all AO settings under the AO toggle.
     # place AO details under the AO toggle so they stay compact.
-    layout.prop(obj, f"{prefix}ao_local_only")
+    row = layout.split(factor=0.4, align=True)
+    row.label(text="Mode")
+    row.prop(obj, f"{prefix}ao_occlusion_mode", text="")
     layout.prop(obj, f"{prefix}ao_samples")
     layout.prop(obj, f"{prefix}ao_render_samples")
     layout.prop(obj, f"{prefix}ao_distance")

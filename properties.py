@@ -74,7 +74,16 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
     ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
-    ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
+    ao_occlusion_mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=[
+            ("GLOBAL", "Global", "Occlusion from all meshes in the scene"),
+            ("SET", "Set", "Occlusion from only the high polys in this texture set"),
+            ("LOCAL", "Local", "Occlusion from only the high polys linked to each low poly"),
+            ("ISOLATED", "Isolated", "Occlusion per high poly mesh."),
+        ],
+        default="SET",
+    )
     ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     ao_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
     ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
@@ -191,7 +200,16 @@ class BakeryData(bpy.types.PropertyGroup):
     global_bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
     global_ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     global_ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
-    global_ao_local_only: bpy.props.BoolProperty(name="Local Only", default=False)
+    global_ao_occlusion_mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=[
+            ("GLOBAL", "Global", "Use all meshes in the scene"),
+            ("SET", "Set", "Use only the high polys in this set"),
+            ("LOCAL", "Local", "Use only the high polys linked to this low poly"),
+            ("ISOLATED", "Isolated", "Use the AO node's local-only mode"),
+        ],
+        default="SET",
+    )
     global_ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     global_ao_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
     global_ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
