@@ -292,7 +292,8 @@ def _clear_image(image):
     image.update()
 
 # expand edge colors into transparent pixels.
-def _dilate_image_python(image, iterations):
+# expand edge colors into transparent pixels (fast hard expansion).
+def _dilate_image(image, iterations):
     # Expand colors into transparent pixels using a multi-source BFS so the
     # padding comes from original opaque pixels instead of iterative smearing.
     width, height = image.size
@@ -352,66 +353,6 @@ def _dilate_image_python(image, iterations):
 
     image.pixels.foreach_set(pixels)
     image.update()
-
-
-def _dilate_image(image, iterations):
-    # Prefer OIIO dilation for performance, fallback to Python if it fails.
-    if iterations <= 0:
-        return
-    try:
-        import OpenImageIO as oiio
-    except Exception:
-        try:
-            import oiio  # type: ignore
-        except Exception as exc:
-            _debug_log(bpy.context, f"OIIO not available, padding skipped: {exc}")
-            return
-
-    try:
-        start_time = time.perf_counter()
-        # let OIIO decide thread count when possible.
-        try:
-            if hasattr(oiio, "attribute"):
-                oiio.attribute("threads", 0)
-            if hasattr(oiio, "ImageBufAlgo") and hasattr(oiio.ImageBufAlgo, "set_max_threads"):
-                oiio.ImageBufAlgo.set_max_threads(0)
-        except Exception:
-            pass
-        width, height = image.size
-        spec = oiio.ImageSpec(width, height, 4, oiio.TypeFloat)
-        src = oiio.ImageBuf(spec)
-        roi = oiio.ROI(0, width, 0, height, 0, 1, 0, 4)
-        import array
-        pixel_count = width * height * 4
-        buf = array.array("f", [0.0]) * pixel_count
-        image.pixels.foreach_get(buf)
-        src.set_pixels(roi, buf)
-        dst = oiio.ImageBuf(spec)
-        dilate = getattr(oiio.ImageBufAlgo, "dilate", None)
-        if not dilate:
-            raise AttributeError("OIIO dilate not available")
-        try:
-            dilate(dst, src, iterations, iterations, roi, 0)
-        except TypeError:
-            try:
-                dilate(dst, src, iterations, iterations, roi)
-            except TypeError:
-                try:
-                    dilate(dst, src, iterations, iterations)
-                except TypeError:
-                    dilate(dst, src, iterations)
-        try:
-            out_pixels = dst.get_pixels(oiio.TypeFloat)
-        except TypeError:
-            try:
-                out_pixels = dst.get_pixels(oiio.TypeFloat, roi)
-            except TypeError:
-                out_pixels = dst.get_pixels(roi, oiio.TypeFloat)
-        image.pixels.foreach_set(out_pixels)
-        image.update()
-        _debug_log(bpy.context, f"OIIO padding {iterations}px in {time.perf_counter() - start_time:.2f}s")
-    except Exception as exc:
-        _debug_log(bpy.context, f"OIIO padding failed, skipped: {exc}")
 
 # save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
@@ -802,7 +743,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     cycles,
                     bake,
                 )
-                # Apply bake margin up front so Blender pads during the bake.
+                # Use bake margin for speed, then a tiny hard pass for crisp edges.
                 padding = settings["dilation"] * scale_factor
                 bake.margin = padding
                 _debug_log(context, f"Applied bake margin of {padding}px")
@@ -948,6 +889,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for item in high_items:
                             _ensure_material_slot(item.object, material)
 
+                # Hard padding pass (old behavior) before downscaling.
+                dilation = settings["dilation"] * scale_factor
+                if dilation > 0:
+                    _dilate_image(image, dilation)
+                    _debug_log(context, f"Applied dilation of {dilation}px")
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
                     _debug_log(
