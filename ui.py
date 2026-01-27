@@ -38,7 +38,9 @@ def _draw_custom_suffix(layout, obj, prefix, base):
 def _draw_ao_options(layout, obj, prefix):
     # group all AO settings under the AO toggle.
     # place AO details under the AO toggle so they stay compact.
-    layout.prop(obj, f"{prefix}ao_local_only")
+    row = layout.split(factor=0.4, align=True)
+    row.label(text="Mode")
+    row.prop(obj, f"{prefix}ao_occlusion_mode", text="")
     layout.prop(obj, f"{prefix}ao_samples")
     layout.prop(obj, f"{prefix}ao_render_samples")
     layout.prop(obj, f"{prefix}ao_distance")
@@ -70,6 +72,7 @@ class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
     # keep list rows compact: icon + name.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
+        row.prop(item, "enabled", text="")
         row.label(icon="IMAGE_DATA")
         row.prop(item, "name", text="", emboss=False)
 
@@ -165,7 +168,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         buttons_col = layout.column(align=True)
         buttons_col.operator("bakery.bake_all", text="Bake All", icon="RENDER_RESULT")
-        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Set", icon="FILE_IMAGE")
+        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Sets", icon="FILE_IMAGE")
 
         global_box = layout.box()
         header = global_box.row(align=True)

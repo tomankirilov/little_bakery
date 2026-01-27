@@ -112,7 +112,7 @@ def _set_highpoly_material_mode(material, mode):
     node.inputs[_BAKE_MODE_INPUT_INDEX].default_value = mode
 
 # Set AO/curvature/thickness values into the material nodes.
-def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_distance,
+def _set_highpoly_material_settings(material, ao_samples, ao_occlusion_mode, ao_distance,
                                     ao_contrast, curvature_exponent, curvature_contrast,
                                     thickness_samples, thickness_distance):
     # Push all AO/Curvature/Thickness sliders into the shared node group.
@@ -123,7 +123,7 @@ def _set_highpoly_material_settings(material, ao_samples, ao_local_only, ao_dist
         ao_node = node_group.nodes.get("Ambient Occlusion")
         if ao_node:
             ao_node.samples = ao_samples
-            ao_node.only_local = ao_local_only
+            ao_node.only_local = ao_occlusion_mode == "ISOLATED"
         thickness_node = node_group.nodes.get("BAKER_THICKNESS_SAMPLES")
         if thickness_node:
             thickness_node.samples = thickness_samples
@@ -483,7 +483,7 @@ def _effective_settings(data, tex_set):
             "color_attribute": tex_set.bake_color_attribute,
             "ao_samples": tex_set.ao_samples,
             "ao_render_samples": tex_set.ao_render_samples,
-            "ao_local_only": tex_set.ao_local_only,
+            "ao_occlusion_mode": tex_set.ao_occlusion_mode,
             "ao_distance": tex_set.ao_distance,
             "ao_contrast": tex_set.ao_contrast,
             "curvature_exponent": tex_set.curvature_exponent,
@@ -519,7 +519,7 @@ def _effective_settings(data, tex_set):
         "color_attribute": data.global_bake_color_attribute,
         "ao_samples": data.global_ao_samples,
         "ao_render_samples": data.global_ao_render_samples,
-        "ao_local_only": data.global_ao_local_only,
+        "ao_occlusion_mode": data.global_ao_occlusion_mode,
         "ao_distance": data.global_ao_distance,
         "ao_contrast": data.global_ao_contrast,
         "curvature_exponent": data.global_curvature_exponent,
@@ -869,8 +869,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_idname = "bakery.bake_selected_set"
-    bl_label = "Bake Selected Set"
-    bl_description = "Bake the active texture set"
+    bl_label = "Bake Selected Sets"
+    bl_description = "Bake the checked texture sets"
 
     # bake only the active texture set.
     def execute(self, context):
@@ -879,15 +879,19 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
         if not _ensure_saved_blend(self, context):
             return {"CANCELLED"}
         data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            self.report({"WARNING"}, "No texture set selected")
+        if not data.texture_sets:
+            self.report({"WARNING"}, "No texture sets available")
+            return {"CANCELLED"}
+        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
+        if not selected_sets:
+            _popup_error(context, "Please check at least one texture set")
+            self.report({"WARNING"}, "Please check at least one texture set")
             return {"CANCELLED"}
         result = _bake_texture_sets(
             self,
             context,
-            [data.texture_sets[index]],
-            "Bake Selected Set",
+            selected_sets,
+            "Bake Selected Sets",
         )
         return {"FINISHED"} if result else {"CANCELLED"}
 
@@ -1017,6 +1021,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
             saved_materials = {}
             color_attribute_materials = {}
+            set_high_objs = []
             for low_item in tex_set.low_polys:
                 low_obj = low_item.object
                 if low_obj and low_obj.type == "MESH":
@@ -1025,6 +1030,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     high_obj = high_item.object
                     if not high_obj or high_obj.type != "MESH":
                         continue
+                    if high_obj not in set_high_objs:
+                        set_high_objs.append(high_obj)
                     if high_obj not in saved_materials:
                         saved_materials[high_obj] = _capture_materials(high_obj)
                     _ensure_material_slot(high_obj, material)
@@ -1063,7 +1070,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     _set_highpoly_material_settings(
                         material,
                         settings["ao_samples"],
-                        settings["ao_local_only"],
+                        settings["ao_occlusion_mode"],
                         settings["ao_distance"],
                         settings["ao_contrast"],
                         settings["curvature_exponent"],
@@ -1104,6 +1111,16 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         f"Baking {target_label} for low poly '{low_obj.name}' "
                         f"with {len(high_objs)} high poly object(s)",
                     )
+                    restore_hide_render = None
+                    if target_name == "ambient_occlusion":
+                        occlusion_mode = settings["ao_occlusion_mode"]
+                        if occlusion_mode in {"SET", "LOCAL"}:
+                            restore_hide_render = {obj: obj.hide_render for obj in scene.objects}
+                            for obj in scene.objects:
+                                obj.hide_render = True
+                            visible = set_high_objs if occlusion_mode == "SET" else high_objs
+                            for obj in visible + [low_obj]:
+                                obj.hide_render = False
                     for obj in high_objs + [low_obj]:
                         obj.hide_viewport = False
                         obj.hide_render = False
@@ -1163,6 +1180,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for obj in temp_links:
                             if obj.name in temp_collection.objects:
                                 temp_collection.objects.unlink(obj)
+                        if restore_hide_render is not None:
+                            for obj, state in restore_hide_render.items():
+                                obj.hide_render = state
                     bake.use_clear = False
                     if target_name == "color_attribute":
                         # Restore the shared material after the color-attribute bake.
