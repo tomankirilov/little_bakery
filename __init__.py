@@ -38,8 +38,8 @@ class BakeryPreferences(bpy.types.AddonPreferences):
     def draw(self, context):
 
         layout = self.layout
-        layout.prop(self, "save_before_bake")
         layout.prop(self, "name_separator")
+        layout.prop(self, "save_before_bake")
         layout.prop(self, "debug_logging")
 
         # Links:

@@ -29,22 +29,39 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            header.label(text="Little Bakery")
+            header.label(text="Little Bakery", icon="QUESTION")
             #header.label(text="About", icon="USER")
             if data.show_about or force_expand:
                 about_col = about_box.column(align=True)
 
                 label_row = about_col.row()
                 label_row.alignment = "CENTER"
-                label_row.label(text="BAKED WITH LOVE!")
-
+                label_row.label(text="BAKED WITH LOVE")
+                
                 label_row = about_col.row()
                 label_row.alignment = "CENTER"
-                label_row.label(text="for everybody")
+                label_row.label(text="♥️ for everybody ♥️")
 
-                row = about_col.row(align=True)
-                row.operator("wm.url_open", text="GitHub").url = "https://github.com/tomankirilov/dummy_bake_tools"
-                row.operator("wm.url_open", text="Tomanov").url = "https://tomanov.art/"
+                about_col.separator(factor=2.0)
+
+                buttons_col = about_col.column(align=True)
+                buttons_col.operator(
+                    "wm.url_open",
+                    text="GitHub",
+                    icon="EXPERIMENTAL",
+                ).url = "https://github.com/tomankirilov/dummy_bake_tools"
+                # buttons_col.operator(
+                #     "wm.url_open",
+                #     text="Documentation",
+                #     icon="HELP",
+                # ).url = "https://tomanov.art/"
+                buttons_col.operator(
+                    "wm.url_open",
+                    text="About",
+                    icon="USER",
+                ).url = "https://tomanov.art/"
+
+                about_col.separator(factor=0.5)
 
         # only show baking progress and about while baking.
         if data.is_baking:
@@ -76,9 +93,13 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 text=f"Bake Completed in {data.last_bake_duration}",
             )
 
+
+
         buttons_col = layout.column(align=True)
         buttons_col.scale_y = 2.0
         buttons_col.operator("bakery.bake_all", text="Bake", icon="SEQUENCE")
+
+
 
         global_box = layout.box()
         header = global_box.row(align=True)
