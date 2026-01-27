@@ -54,6 +54,7 @@ class BakeryLowPolyItem(bpy.types.PropertyGroup):
 class BakeryTextureSet(bpy.types.PropertyGroup):
     # group bake targets and their settings per texture set for overrides.
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
+    enabled: bpy.props.BoolProperty(name="Enabled", default=True)
     low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)

@@ -869,8 +869,8 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_idname = "bakery.bake_selected_set"
-    bl_label = "Bake Selected Set"
-    bl_description = "Bake the active texture set"
+    bl_label = "Bake Selected Sets"
+    bl_description = "Bake the checked texture sets"
 
     # bake only the active texture set.
     def execute(self, context):
@@ -879,15 +879,19 @@ class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
         if not _ensure_saved_blend(self, context):
             return {"CANCELLED"}
         data = context.scene.bakery_data
-        index = data.active_texture_index
-        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
-            self.report({"WARNING"}, "No texture set selected")
+        if not data.texture_sets:
+            self.report({"WARNING"}, "No texture sets available")
+            return {"CANCELLED"}
+        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
+        if not selected_sets:
+            _popup_error(context, "Please check at least one texture set")
+            self.report({"WARNING"}, "Please check at least one texture set")
             return {"CANCELLED"}
         result = _bake_texture_sets(
             self,
             context,
-            [data.texture_sets[index]],
-            "Bake Selected Set",
+            selected_sets,
+            "Bake Selected Sets",
         )
         return {"FINISHED"} if result else {"CANCELLED"}
 

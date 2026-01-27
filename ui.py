@@ -70,6 +70,7 @@ class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
     # keep list rows compact: icon + name.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
+        row.prop(item, "enabled", text="")
         row.label(icon="IMAGE_DATA")
         row.prop(item, "name", text="", emboss=False)
 
@@ -165,7 +166,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         buttons_col = layout.column(align=True)
         buttons_col.operator("bakery.bake_all", text="Bake All", icon="RENDER_RESULT")
-        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Set", icon="FILE_IMAGE")
+        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Sets", icon="FILE_IMAGE")
 
         global_box = layout.box()
         header = global_box.row(align=True)
