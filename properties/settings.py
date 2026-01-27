@@ -119,4 +119,4 @@ class BakeryData(bpy.types.PropertyGroup):
         default=0.0,
         min=0.0,
     )
-    global_dilation: bpy.props.IntProperty(name="Dilation (px)", default=4, min=0)
+    global_dilation: bpy.props.IntProperty(name="Padding (px)", default=4, min=0)

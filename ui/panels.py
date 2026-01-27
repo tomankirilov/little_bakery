@@ -90,7 +90,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             row.alignment = "CENTER"
             row.operator(
                 "bakery.hide_last_bake",
-                text=f"Bake Completed in {data.last_bake_duration}",
+                text=f"Last Bake Completed in {data.last_bake_duration}",
             )
 
 
@@ -268,7 +268,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     row.prop(tex_set, "override_dilation", text="")
                     dilation_row = row.row(align=True)
                     dilation_row.enabled = tex_set.override_dilation
-                    dilation_row.prop(tex_set, "set_dilation", text="Dilation (px)")
+                    dilation_row.prop(tex_set, "set_dilation", text="Padding (px)")
                     row = set_col.row(align=True)
                     row.prop(tex_set, "override_msaa", text="")
                     msaa_row = row.row(align=True)

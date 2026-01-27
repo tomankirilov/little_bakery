@@ -9,7 +9,7 @@ Dummy Bake Tools allows for grouping many objects and baking them all with a sin
 ## What it does
 - Manages texture sets with low poly + high poly lists.
 - Bakes multiple targets in one pass (per texture set or all sets).
-- Adds configurable padding (dilation) to remove UV seams.
+- Adds configurable padding to remove UV seams.
 - Supports MSAA-style supersampling by baking at a higher resolution and
   downscaling before saving.
 - Lets you bake vertex color attributes by name, per high poly.
@@ -56,12 +56,12 @@ Rendering settings:
 - Render Device: CPU or GPU
 - Resolution
 - MSAA (None/x2/x4/x8)
-- Dilation (px)
+- Padding (px)
 - Cage Extrusion / Max Ray Distance
 
 ## Notes
 - Only AO and Thickness use render samples; other targets render at 1 sample.
-- Dilation is done externally via OIIO.
+- Padding is done externally via OIIO.
 - MSAA is achieved by rendering the texture at a higher resolution and scaling it down.
 
 ## About
