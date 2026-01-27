@@ -24,6 +24,7 @@ _TARGET_LABELS = {
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
+    "custom": "custom",
     "color_attribute": "color_attribute",
     "random_island": "random_island",
 }
@@ -477,6 +478,10 @@ def _prepare_bake_target(item, material, cycles, bake):
         cycles.samples = 1
         cycles.bake_type = "POSITION"
         return False
+    if target_name == "custom":
+        cycles.samples = 1
+        cycles.bake_type = "EMIT"
+        return False
     cycles.bake_type = "EMIT"
     if target_name == "ambient_occlusion":
         cycles.samples = item.ao_render_samples
@@ -914,6 +919,7 @@ class Bakery_OT_bake_target_add_global(bpy.types.Operator):
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
+            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
         ],
@@ -999,6 +1005,7 @@ class Bakery_OT_bake_target_add_set(bpy.types.Operator):
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
+            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
         ],
@@ -1186,7 +1193,6 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         set_high_objs.append(high_obj)
                     if high_obj not in saved_materials:
                         saved_materials[high_obj] = _capture_materials(high_obj)
-                    _ensure_material_slot(high_obj, material)
 
             # MSAA is implemented by baking at a higher resolution and downscaling.
             scale_factor = _msaa_factor(settings["msaa"])
@@ -1206,6 +1212,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 data.baking_target_name = target_label
                 data.baking_progress = progress_value / progress_total
                 _progress(operator, context, f"{label}: {tex_set.name} - {target_label}")
+
+                if target_name == "custom" and not item.custom_material:
+                    _popup_error(context, "Custom bake target needs a material")
+                    operator.report({"WARNING"}, "Custom bake target needs a material")
+                    continue
 
                 texture_name = _target_texture_name(tex_set, item)
                 image = _make_image(texture_name, bake_resolution[0], bake_resolution[1])
@@ -1231,6 +1242,20 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         item.thickness_distance,
                     )
 
+                use_bakery_material = target_name in {
+                    "ambient_occlusion",
+                    "curvature",
+                    "thickness",
+                    "random_island",
+                    "bakery_position",
+                }
+                if use_bakery_material:
+                    for high_obj in set_high_objs:
+                        _ensure_material_slot(high_obj, material)
+                if target_name == "custom":
+                    for high_obj in set_high_objs:
+                        _ensure_material_slot(high_obj, item.custom_material)
+
                 for low_item in tex_set.low_polys:
                     low_obj = low_item.object
                     if not low_obj or low_obj.type != "MESH":
@@ -1242,8 +1267,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     ]
                     high_objs = [item.object for item in high_items]
                     if not high_objs:
-                        # If there is no high poly, I bake the low poly with the baker material itself.
-                        _ensure_material_slot(low_obj, material)
+                        # If there is no high poly, bake the low poly with the target material.
+                        if use_bakery_material:
+                            _ensure_material_slot(low_obj, material)
+                        elif target_name == "custom":
+                            _ensure_material_slot(low_obj, item.custom_material)
                     if target_name == "color_attribute":
                         # Override the high poly material per-object to inject the attribute name.
                         for item in high_items:
