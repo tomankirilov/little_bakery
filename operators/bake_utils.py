@@ -349,7 +349,8 @@ def _dilate_image(image, iterations):
         if pixels[dst_offset + 3] > 0.0:
             continue
         src_offset = owner[idx] * 4
-        pixels[dst_offset:dst_offset + 4] = pixels[src_offset:src_offset + 4]
+        pixels[dst_offset:dst_offset + 3] = pixels[src_offset:src_offset + 3]
+        pixels[dst_offset + 3] = 1.0
 
     image.pixels.foreach_set(pixels)
     image.update()
