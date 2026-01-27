@@ -404,10 +404,11 @@ def _relative_to_blend(path):
 def _collect_bake_targets(data, tex_set):
     # build the final target list (global + optional set override).
     global_targets = [item for item in data.global_bake_targets if item.enabled]
-    if tex_set and tex_set.override_bake_targets:
+    set_targets = [item for item in tex_set.bake_targets if item.enabled] if tex_set else []
+    if set_targets:
         if tex_set.bake_target_mode == "REPLACE":
-            return [item for item in tex_set.bake_targets if item.enabled]
-        return global_targets + [item for item in tex_set.bake_targets if item.enabled]
+            return set_targets
+        return global_targets + set_targets
     return global_targets
 
 
@@ -484,14 +485,22 @@ def _prepare_bake_target(item, material, cycles, bake):
 # merge global settings with per-texture-set overrides.
 def _effective_settings(data, tex_set):
     # keep only shared settings here (targets are separate now).
-    if tex_set.override_global_settings:
+    if tex_set.override_resolution:
         resolution = tex_set.size
     else:
         resolution = data.global_resolution
+    if tex_set.override_dilation:
+        dilation = tex_set.set_dilation
+    else:
+        dilation = data.global_dilation
+    if tex_set.override_msaa:
+        msaa = tex_set.set_msaa
+    else:
+        msaa = data.global_msaa
     return {
         "resolution": resolution,
-        "dilation": data.global_dilation,
-        "msaa": data.global_msaa,
+        "dilation": dilation,
+        "msaa": msaa,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
         "output_color_depth": data.output_color_depth,
@@ -1220,11 +1229,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
                     bake.use_cage = low_item.use_cage
                     bake.cage_object = low_item.cage_object if low_item.use_cage else None
-                    if low_item.override_global_settings:
+                    if low_item.override_cage_extrusion:
                         bake.cage_extrusion = low_item.cage_extrusion
-                        bake.max_ray_distance = low_item.cage_max_ray_distance
                     else:
                         bake.cage_extrusion = data.global_extrusion
+                    if low_item.override_cage_max_ray_distance:
+                        bake.max_ray_distance = low_item.cage_max_ray_distance
+                    else:
                         bake.max_ray_distance = data.global_max_ray_distance
 
                     material_slot = _ensure_low_material(low_obj)

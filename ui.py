@@ -341,12 +341,46 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             clear_op.list_kind = "TEXTURE"
 
             if tex_set:
-                box.prop(tex_set, "override_global_settings")
+                row = box.row(align=True)
+                row.prop(
+                    tex_set,
+                    "override_global_settings",
+                    icon="TRIA_DOWN" if tex_set.override_global_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Render Settings")
                 if tex_set.override_global_settings:
                     set_col = _indent_column(box)
-                    _draw_resolution_row(set_col, tex_set, "size")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_resolution", text="")
+                    res_row = row.row(align=True)
+                    res_row.enabled = tex_set.override_resolution
+                    res_split = res_row.split(factor=0.4, align=True)
+                    res_split.label(text="Resolution")
+                    res_split.prop(tex_set, "size", text="")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_dilation", text="")
+                    dilation_row = row.row(align=True)
+                    dilation_row.enabled = tex_set.override_dilation
+                    dilation_row.prop(tex_set, "set_dilation", text="Dilation (px)")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_msaa", text="")
+                    msaa_row = row.row(align=True)
+                    msaa_row.enabled = tex_set.override_msaa
+                    msaa_split = msaa_row.split(factor=0.4, align=True)
+                    msaa_split.label(text="MSAA")
+                    msaa_split.prop(tex_set, "set_msaa", text="")
 
-                box.prop(tex_set, "override_bake_targets")
+                row = box.row(align=True)
+                row.prop(
+                    tex_set,
+                    "override_bake_targets",
+                    icon="TRIA_DOWN" if tex_set.override_bake_targets else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Bake Targets")
                 if tex_set.override_bake_targets:
                     row = _indent_column(box)
                     row.prop(tex_set, "bake_target_mode")
@@ -407,9 +441,24 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
                 low_item = tex_set.low_polys[tex_set.active_low_index]
                 low_box.label(text="Low Poly Settings")
-                low_box.prop(low_item, "use_cage")
-                if low_item.use_cage:
-                    low_box.prop_search(
+                row = low_box.row(align=True)
+                row.prop(
+                    low_item,
+                    "override_global_settings",
+                    icon="TRIA_DOWN" if low_item.override_global_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Global Settings")
+                if low_item.override_global_settings:
+                    cage_col = low_box.column(align=True)
+                    cage_row = cage_col.row(align=True)
+                    cage_row.prop(low_item, "use_cage", text="")
+                    cage_row.label(text="Cage")
+                    picker_row = cage_row.row(align=True)
+                    picker_row.scale_x = 1.6
+                    picker_row.enabled = low_item.use_cage
+                    picker_row.prop_search(
                         low_item,
                         "cage_object",
                         context.scene,
@@ -417,11 +466,16 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         text="",
                         icon="VIEWZOOM",
                     )
-                low_box.prop(low_item, "override_global_settings")
-                if low_item.override_global_settings:
-                    cage_col = low_box.column(align=True)
-                    cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
-                    cage_col.prop(low_item, "cage_max_ray_distance")
+                    row = cage_col.row(align=True)
+                    row.prop(low_item, "override_cage_extrusion", text="")
+                    extrusion_row = row.row(align=True)
+                    extrusion_row.enabled = low_item.override_cage_extrusion
+                    extrusion_row.prop(low_item, "cage_extrusion", text="Cage Extrusion")
+                    row = cage_col.row(align=True)
+                    row.prop(low_item, "override_cage_max_ray_distance", text="")
+                    ray_row = row.row(align=True)
+                    ray_row.enabled = low_item.override_cage_max_ray_distance
+                    ray_row.prop(low_item, "cage_max_ray_distance")
 
         if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
             low_item = tex_set.low_polys[tex_set.active_low_index]

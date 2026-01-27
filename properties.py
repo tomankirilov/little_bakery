@@ -43,6 +43,8 @@ class BakeryLowPolyItem(bpy.types.PropertyGroup):
     cage_object: bpy.props.PointerProperty(type=bpy.types.Object)
     use_cage: bpy.props.BoolProperty(name="Cage", default=False)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
+    override_cage_extrusion: bpy.props.BoolProperty(name="Cage Extrusion", default=True)
+    override_cage_max_ray_distance: bpy.props.BoolProperty(name="Max Ray Distance", default=True)
     cage_extrusion: bpy.props.FloatProperty(name="Extrusion", default=0.0, min=0.0)
     cage_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",
@@ -103,12 +105,26 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
     active_low_index: bpy.props.IntProperty(default=-1)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
+    override_resolution: bpy.props.BoolProperty(name="Resolution", default=True)
+    override_dilation: bpy.props.BoolProperty(name="Dilation", default=False)
+    override_msaa: bpy.props.BoolProperty(name="MSAA", default=False)
     size: bpy.props.IntVectorProperty(
         name="Resolution",
         size=2,
         default=(1024, 1024),
         min=1,
         subtype="NONE",
+    )
+    set_dilation: bpy.props.IntProperty(name="Dilation (px)", default=4, min=0)
+    set_msaa: bpy.props.EnumProperty(
+        name="MSAA",
+        items=[
+            ("NONE", "None", ""),
+            ("2", "x2", ""),
+            ("4", "x4", ""),
+            ("8", "x8", ""),
+        ],
+        default="NONE",
     )
     override_bake_targets: bpy.props.BoolProperty(name="Override Bake Targets", default=False)
     bake_target_mode: bpy.props.EnumProperty(
