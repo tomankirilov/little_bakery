@@ -180,6 +180,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
+        #header.label(text="About", icon="USER")
         header.label(text="About")
         if data.show_about:
             about_col = about_box.column(align=True)
@@ -206,6 +207,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         global_box = layout.box()
         header = global_box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_global_settings",
@@ -213,9 +215,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Global Settings")
+        header.label(text="Global Settings", icon="TOOL_SETTINGS")
         if data.show_global_settings:
-            sections = _indent_column(global_box)
+            sections = global_box.column(align=True)
 
             header = sections.row(align=True)
             header.prop(
@@ -301,6 +303,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         box = layout.box()
         header = box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_texture_sets",
@@ -308,13 +311,14 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Texture Sets")
+        header.label(text="Texture Sets", icon="RENDER_RESULT")
         tex_set = None
         if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
             tex_set = data.texture_sets[data.active_texture_index]
-            if data.show_texture_sets:
-                row = box.row()
-                row.template_list(
+
+        if data.show_texture_sets:
+            row = box.row()
+            row.template_list(
                 "DUMMYBAKE_UL_texture_sets",
                 "",
                 data,
@@ -362,6 +366,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         low_box = layout.box()
         header = low_box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_low_polys",
@@ -369,7 +374,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Low Poly")
+        header.label(text="Low Poly", icon="MESH_ICOSPHERE")
         if data.show_low_polys:
             row = low_box.row()
             row.template_list(
@@ -410,6 +415,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             low_item = tex_set.low_polys[tex_set.active_low_index]
             high_box = layout.box()
             high_header = high_box.row(align=True)
+            high_header.scale_y = 1.4
             high_header.prop(
                 data,
                 "show_high_polys",
@@ -417,7 +423,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            high_header.label(text="High Poly")
+            high_header.label(text="High Poly", icon="MESH_UVSPHERE")
             if data.show_high_polys:
                 row = high_box.row()
                 row.template_list(
