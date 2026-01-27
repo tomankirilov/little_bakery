@@ -294,34 +294,38 @@ def _clear_image(image):
 # expand edge colors into transparent pixels.
 # expand edge colors into transparent pixels (fast hard expansion).
 def _dilate_image(image, iterations):
-    # Expand colors into transparent pixels using a multi-source BFS so the
-    # padding comes from original opaque pixels instead of iterative smearing.
-    width, height = image.size
+    # Expand colors into transparent pixels using a fast BFS over a float buffer.
     if iterations <= 0:
         return
 
-    from collections import deque
-
-    pixels = list(image.pixels)
+    width, height = image.size
     total = width * height
-    owner = [-1] * total
-    dist = [-1] * total
-    queue = deque()
 
+    from collections import deque
+    from array import array
+
+    pixels = array("f", [0.0]) * (total * 4)
+    image.pixels.foreach_get(pixels)
+
+    owner = array("i", [-1]) * total
+    dist = array("i", [-1]) * total
+    queue = deque()
+    transparent = array("i")
+
+    p4 = 0
     for idx in range(total):
-        if pixels[idx * 4 + 3] > 0.0:
+        if pixels[p4 + 3] > 0.0:
             owner[idx] = idx
             dist[idx] = 0
             queue.append(idx)
+        else:
+            transparent.append(idx)
+        p4 += 4
 
     if not queue:
         return
 
-    neighbors = (
-        (-1, -1), (0, -1), (1, -1),
-        (-1, 0),           (1, 0),
-        (-1, 1),  (0, 1),  (1, 1),
-    )
+    w1 = width - 1
 
     while queue:
         idx = queue.popleft()
@@ -329,28 +333,74 @@ def _dilate_image(image, iterations):
         if current_dist >= iterations:
             continue
         x = idx % width
-        y = idx // width
-        for ox, oy in neighbors:
-            nx = x + ox
-            ny = y + oy
-            if nx < 0 or nx >= width or ny < 0 or ny >= height:
-                continue
-            nidx = ny * width + nx
-            if owner[nidx] != -1:
-                continue
-            owner[nidx] = owner[idx]
-            dist[nidx] = current_dist + 1
-            queue.append(nidx)
+        nd = current_dist + 1
+        base_owner = owner[idx]
 
-    for idx in range(total):
-        if owner[idx] == -1:
+        if idx >= width:
+            up = idx - width
+            if x > 0:
+                n = up - 1
+                if owner[n] == -1:
+                    owner[n] = base_owner
+                    dist[n] = nd
+                    queue.append(n)
+            n = up
+            if owner[n] == -1:
+                owner[n] = base_owner
+                dist[n] = nd
+                queue.append(n)
+            if x < w1:
+                n = up + 1
+                if owner[n] == -1:
+                    owner[n] = base_owner
+                    dist[n] = nd
+                    queue.append(n)
+
+        if x > 0:
+            n = idx - 1
+            if owner[n] == -1:
+                owner[n] = base_owner
+                dist[n] = nd
+                queue.append(n)
+        if x < w1:
+            n = idx + 1
+            if owner[n] == -1:
+                owner[n] = base_owner
+                dist[n] = nd
+                queue.append(n)
+
+        dn = idx + width
+        if dn < total:
+            if x > 0:
+                n = dn - 1
+                if owner[n] == -1:
+                    owner[n] = base_owner
+                    dist[n] = nd
+                    queue.append(n)
+            n = dn
+            if owner[n] == -1:
+                owner[n] = base_owner
+                dist[n] = nd
+                queue.append(n)
+            if x < w1:
+                n = dn + 1
+                if owner[n] == -1:
+                    owner[n] = base_owner
+                    dist[n] = nd
+                    queue.append(n)
+
+    for idx in transparent:
+        oi = owner[idx]
+        if oi == -1:
             continue
-        dst_offset = idx * 4
-        if pixels[dst_offset + 3] > 0.0:
+        dst = idx * 4
+        if pixels[dst + 3] > 0.0:
             continue
-        src_offset = owner[idx] * 4
-        pixels[dst_offset:dst_offset + 3] = pixels[src_offset:src_offset + 3]
-        pixels[dst_offset + 3] = 1.0
+        src = oi * 4
+        pixels[dst] = pixels[src]
+        pixels[dst + 1] = pixels[src + 1]
+        pixels[dst + 2] = pixels[src + 2]
+        pixels[dst + 3] = 1.0
 
     image.pixels.foreach_set(pixels)
     image.update()
@@ -744,10 +794,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     cycles,
                     bake,
                 )
-                # Use bake margin for speed, then a tiny hard pass for crisp edges.
-                padding = settings["dilation"] * scale_factor
-                bake.margin = padding
-                _debug_log(context, f"Applied bake margin of {padding}px")
+                # Keep bake margin off so padding is handled only by dilation.
+                bake.margin = 0
                 if needs_material_settings:
                     _set_highpoly_material_settings(
                         material,
