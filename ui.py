@@ -332,7 +332,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Texture Settings", icon="RENDER_RESULT")
+        header.label(text="Texture Sets", icon="RENDER_RESULT")
         tex_set = None
         if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
             tex_set = data.texture_sets[data.active_texture_index]

@@ -311,17 +311,60 @@ classes = (
 )
 
 
+def _ensure_defaults(scene):
+    data = getattr(scene, "bakery_data", None)
+    if not data:
+        return
+    if not data.texture_sets:
+        tex_set = data.texture_sets.add()
+        tex_set.name = "texture"
+        data.active_texture_index = 0
+    if not data.global_bake_targets:
+        target = data.global_bake_targets.add()
+        target.target_type = "normal"
+        target.name = "normal"
+        data.active_global_bake_target_index = 0
+
+
+def _ensure_defaults_all():
+    scenes = getattr(bpy.data, "scenes", None)
+    if not scenes:
+        return False
+    for scene in scenes:
+        _ensure_defaults(scene)
+    return True
+
+
+def _deferred_defaults():
+    if _ensure_defaults_all():
+        return None
+    return 1.0
+
+
+def _on_load(_dummy):
+    if not bpy.app.timers.is_registered(_deferred_defaults):
+        bpy.app.timers.register(_deferred_defaults, first_interval=0.1)
+
+
 # register property groups and attach them to the Scene.
 def register():
     # register the property groups and attach them to the Scene.
     for cls in classes:
-        bpy.utils.register_class(cls)
+        if getattr(bpy.types, cls.__name__, None) is None:
+            bpy.utils.register_class(cls)
     bpy.types.Scene.bakery_data = bpy.props.PointerProperty(type=BakeryData)
+    if not bpy.app.timers.is_registered(_deferred_defaults):
+        bpy.app.timers.register(_deferred_defaults, first_interval=0.1)
+    if _on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load)
 
 
 # unregister property groups and remove the Scene pointer.
 def unregister():
     # remove the Scene pointer and unregister classes in reverse.
+    if _on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load)
     del bpy.types.Scene.bakery_data
     for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+        if getattr(bpy.types, cls.__name__, None) is not None:
+            bpy.utils.unregister_class(cls)
