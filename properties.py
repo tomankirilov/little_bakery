@@ -51,27 +51,26 @@ class BakeryLowPolyItem(bpy.types.PropertyGroup):
     )
 
 
-class BakeryTextureSet(bpy.types.PropertyGroup):
-    # group bake targets and their settings per texture set for overrides.
-    name: bpy.props.StringProperty(name="Name", default="Texture Set")
+class BakeryBakeTargetItem(bpy.types.PropertyGroup):
+    # one bake target entry with its own settings.
     enabled: bpy.props.BoolProperty(name="Enabled", default=True)
-    low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
-    active_low_index: bpy.props.IntProperty(default=-1)
-    override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
-    size: bpy.props.IntVectorProperty(
-        name="Resolution",
-        size=2,
-        default=(1024, 1024),
-        min=1,
-        subtype="NONE",
+    target_type: bpy.props.EnumProperty(
+        name="Type",
+        items=[
+            ("tangent_normal", "Tangent Space Normal", ""),
+            ("normals_ws", "Object Space Normal", ""),
+            ("ambient_occlusion", "Ambient Occlusion", ""),
+            ("curvature", "Curvature", ""),
+            ("thickness", "Thickness", ""),
+            ("position", "Position", ""),
+            ("color_attribute", "Color Attribute", ""),
+            ("random_island", "Random Island", ""),
+        ],
+        default="ambient_occlusion",
     )
-    bake_normals_ws: bpy.props.BoolProperty(name="Object Space Normal", default=False)
-    bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Space Normal", default=False)
-    normals_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    normals_suffix: bpy.props.StringProperty(name="Suffix", default="_normals_ws")
-    tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    tangent_suffix: bpy.props.StringProperty(name="Suffix", default="_tangent_normal")
-    bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
+    custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
+    suffix: bpy.props.StringProperty(name="Suffix", default="")
+
     ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     ao_occlusion_mode: bpy.props.EnumProperty(
@@ -86,29 +85,42 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     )
     ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     ao_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
-    ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    ao_suffix: bpy.props.StringProperty(name="Suffix", default="_ambient_occlusion")
-    bake_curvature: bpy.props.BoolProperty(name="Curvature", default=False)
+
     curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     curvature_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
-    curvature_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    curvature_suffix: bpy.props.StringProperty(name="Suffix", default="_curvature")
-    bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
+
     thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
     thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
-    thickness_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
-    bake_position: bpy.props.BoolProperty(name="Position", default=False)
-    bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
-    bake_color_attribute: bpy.props.BoolProperty(name="Color Attribute", default=False)
-    position_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    position_suffix: bpy.props.StringProperty(name="Suffix", default="_position")
-    random_island_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    random_island_suffix: bpy.props.StringProperty(name="Suffix", default="_random_island")
-    color_attribute_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    color_attribute_suffix: bpy.props.StringProperty(name="Suffix", default="_color_attribute")
+
     color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
+
+
+class BakeryTextureSet(bpy.types.PropertyGroup):
+    # group bake targets and their settings per texture set for overrides.
+    name: bpy.props.StringProperty(name="Name", default="Texture Set")
+    enabled: bpy.props.BoolProperty(name="Enabled", default=True)
+    low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
+    active_low_index: bpy.props.IntProperty(default=-1)
+    override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
+    size: bpy.props.IntVectorProperty(
+        name="Resolution",
+        size=2,
+        default=(1024, 1024),
+        min=1,
+        subtype="NONE",
+    )
+    override_bake_targets: bpy.props.BoolProperty(name="Override Bake Targets", default=False)
+    bake_target_mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=[
+            ("ADD", "Add", ""),
+            ("REPLACE", "Replace", ""),
+        ],
+        default="ADD",
+    )
+    bake_targets: bpy.props.CollectionProperty(type=BakeryBakeTargetItem)
+    active_bake_target_index: bpy.props.IntProperty(default=-1)
 
 
 class BakeryData(bpy.types.PropertyGroup):
@@ -191,50 +203,8 @@ class BakeryData(bpy.types.PropertyGroup):
         min=1,
         subtype="NONE",
     )
-    global_bake_normals_ws: bpy.props.BoolProperty(name="Object Space Normal", default=False)
-    global_bake_tangent_normal: bpy.props.BoolProperty(name="Tangent Space Normal", default=False)
-    global_normals_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_normals_suffix: bpy.props.StringProperty(name="Suffix", default="_normals_ws")
-    global_tangent_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_tangent_suffix: bpy.props.StringProperty(name="Suffix", default="_tangent_normal")
-    global_bake_ambient_occlusion: bpy.props.BoolProperty(name="Ambient Occlusion", default=False)
-    global_ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
-    global_ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
-    global_ao_occlusion_mode: bpy.props.EnumProperty(
-        name="Mode",
-        items=[
-            ("GLOBAL", "Global", "Use all meshes in the scene"),
-            ("SET", "Set", "Use only the high polys in this set"),
-            ("LOCAL", "Local", "Use only the high polys linked to this low poly"),
-            ("ISOLATED", "Isolated", "Use the AO node's local-only mode"),
-        ],
-        default="SET",
-    )
-    global_ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
-    global_ao_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
-    global_ao_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_ao_suffix: bpy.props.StringProperty(name="Suffix", default="_ambient_occlusion")
-    global_bake_curvature: bpy.props.BoolProperty(name="Curvature", default=False)
-    global_curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
-    global_curvature_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
-    global_curvature_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_curvature_suffix: bpy.props.StringProperty(name="Suffix", default="_curvature")
-    global_bake_thickness: bpy.props.BoolProperty(name="Thickness", default=False)
-    global_thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
-    global_thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
-    global_thickness_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
-    global_thickness_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_thickness_suffix: bpy.props.StringProperty(name="Suffix", default="_thickness")
-    global_bake_position: bpy.props.BoolProperty(name="Position", default=False)
-    global_bake_random_island: bpy.props.BoolProperty(name="Random Island", default=False)
-    global_bake_color_attribute: bpy.props.BoolProperty(name="Color Attribute", default=False)
-    global_position_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_position_suffix: bpy.props.StringProperty(name="Suffix", default="_position")
-    global_random_island_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_random_island_suffix: bpy.props.StringProperty(name="Suffix", default="_random_island")
-    global_color_attribute_custom_suffix: bpy.props.BoolProperty(name="Custom Suffix", default=False)
-    global_color_attribute_suffix: bpy.props.StringProperty(name="Suffix", default="_color_attribute")
-    global_color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
+    global_bake_targets: bpy.props.CollectionProperty(type=BakeryBakeTargetItem)
+    active_global_bake_target_index: bpy.props.IntProperty(default=-1)
     global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.0, min=0.0)
     global_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",
@@ -247,6 +217,7 @@ class BakeryData(bpy.types.PropertyGroup):
 classes = (
     BakeryHighPolyItem,
     BakeryLowPolyItem,
+    BakeryBakeTargetItem,
     BakeryTextureSet,
     BakeryData,
 )

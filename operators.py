@@ -27,6 +27,16 @@ _TARGET_LABELS = {
     "color_attribute": "Color Attribute",
     "random_island": "Random Island",
 }
+_DEFAULT_SUFFIX = {
+    "tangent_normal": "_tangent_normal",
+    "normals_ws": "_normals_ws",
+    "ambient_occlusion": "_ambient_occlusion",
+    "curvature": "_curvature",
+    "thickness": "_thickness",
+    "position": "_position",
+    "color_attribute": "_color_attribute",
+    "random_island": "_random_island",
+}
 
 # Grab addon preferences if they exist (read debug)
 def _get_addon_prefs(context):
@@ -390,19 +400,22 @@ def _relative_to_blend(path):
     relative = relative.lstrip("\\/")
     return f"/{relative}" if relative else ""
 
-# list bake targets in the order I want to process them.
-def _bake_targets_from_settings(settings):
-    # keep the bake order stable so output naming stays predictable.
-    return [
-        ("tangent_normal", settings["tangent_normal"], settings["tangent_suffix"]),
-        ("normals_ws", settings["normals_ws"], settings["normals_suffix"]),
-        ("ambient_occlusion", settings["ambient_occlusion"], settings["ao_suffix"]),
-        ("curvature", settings["curvature"], settings["curvature_suffix"]),
-        ("thickness", settings["thickness"], settings["thickness_suffix"]),
-        ("position", settings["position"], settings["position_suffix"]),
-        ("color_attribute", settings["color_attribute"], settings["color_attribute_suffix"]),
-        ("random_island", settings["random_island"], settings["random_island_suffix"]),
-    ]
+# list bake targets in the order to process them.
+def _collect_bake_targets(data, tex_set):
+    # build the final target list (global + optional set override).
+    global_targets = [item for item in data.global_bake_targets if item.enabled]
+    if tex_set and tex_set.override_bake_targets:
+        if tex_set.bake_target_mode == "REPLACE":
+            return [item for item in tex_set.bake_targets if item.enabled]
+        return global_targets + [item for item in tex_set.bake_targets if item.enabled]
+    return global_targets
+
+
+# choose a suffix for a target item.
+def _target_suffix(item):
+    if item.custom_suffix and item.suffix:
+        return item.suffix
+    return _DEFAULT_SUFFIX.get(item.target_type, "")
 
 # convert the MSAA choice into a numeric scale factor.
 def _msaa_factor(value):
@@ -440,8 +453,9 @@ def _copy_color_attribute_material(base_material, attribute_name, cache, created
     return material_copy
 
 # set bake mode and samples for the current target.
-def _prepare_bake_target(target_name, settings, material, cycles, bake):
-    # Configure Cycles bake settings and the shared material for the target.
+def _prepare_bake_target(item, material, cycles, bake):
+    # configure Cycles bake settings and the shared material for the target.
+    target_name = item.target_type
     if target_name == "tangent_normal":
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
@@ -450,11 +464,11 @@ def _prepare_bake_target(target_name, settings, material, cycles, bake):
 
     cycles.bake_type = "EMIT"
     if target_name == "ambient_occlusion":
-        cycles.samples = settings["ao_render_samples"]
+        cycles.samples = item.ao_render_samples
         _set_highpoly_material_mode(material, "ambient_occlusion")
         return True
     if target_name == "thickness":
-        cycles.samples = settings["thickness_render_samples"]
+        cycles.samples = item.thickness_render_samples
         _set_highpoly_material_mode(material, "thickness")
         return True
     if target_name == "color_attribute":
@@ -469,73 +483,13 @@ def _prepare_bake_target(target_name, settings, material, cycles, bake):
 
 # merge global settings with per-texture-set overrides.
 def _effective_settings(data, tex_set):
-    # Merge texture-set overrides with global defaults into a flat settings dict.
+    # keep only shared settings here (targets are separate now).
     if tex_set.override_global_settings:
-        return {
-            "resolution": tex_set.size,
-            "normals_ws": tex_set.bake_normals_ws,
-            "tangent_normal": tex_set.bake_tangent_normal,
-            "ambient_occlusion": tex_set.bake_ambient_occlusion,
-            "curvature": tex_set.bake_curvature,
-            "thickness": tex_set.bake_thickness,
-            "position": tex_set.bake_position,
-            "random_island": tex_set.bake_random_island,
-            "color_attribute": tex_set.bake_color_attribute,
-            "ao_samples": tex_set.ao_samples,
-            "ao_render_samples": tex_set.ao_render_samples,
-            "ao_occlusion_mode": tex_set.ao_occlusion_mode,
-            "ao_distance": tex_set.ao_distance,
-            "ao_contrast": tex_set.ao_contrast,
-            "curvature_exponent": tex_set.curvature_exponent,
-            "curvature_contrast": tex_set.curvature_contrast,
-            "thickness_samples": tex_set.thickness_samples,
-            "thickness_render_samples": tex_set.thickness_render_samples,
-            "thickness_distance": tex_set.thickness_distance,
-            "normals_suffix": tex_set.normals_suffix,
-            "tangent_suffix": tex_set.tangent_suffix,
-            "ao_suffix": tex_set.ao_suffix,
-            "curvature_suffix": tex_set.curvature_suffix,
-            "thickness_suffix": tex_set.thickness_suffix,
-            "position_suffix": tex_set.position_suffix,
-            "random_island_suffix": tex_set.random_island_suffix,
-            "color_attribute_suffix": tex_set.color_attribute_suffix,
-            "color_attribute_name": tex_set.color_attribute_name,
-            "dilation": data.global_dilation,
-            "msaa": data.global_msaa,
-            "output_format": data.output_format,
-            "output_color_mode": data.output_color_mode,
-            "output_color_depth": data.output_color_depth,
-            "output_png_compression": data.output_png_compression,
-        }
+        resolution = tex_set.size
+    else:
+        resolution = data.global_resolution
     return {
-        "resolution": data.global_resolution,
-        "normals_ws": data.global_bake_normals_ws,
-        "tangent_normal": data.global_bake_tangent_normal,
-        "ambient_occlusion": data.global_bake_ambient_occlusion,
-        "curvature": data.global_bake_curvature,
-        "thickness": data.global_bake_thickness,
-        "position": data.global_bake_position,
-        "random_island": data.global_bake_random_island,
-        "color_attribute": data.global_bake_color_attribute,
-        "ao_samples": data.global_ao_samples,
-        "ao_render_samples": data.global_ao_render_samples,
-        "ao_occlusion_mode": data.global_ao_occlusion_mode,
-        "ao_distance": data.global_ao_distance,
-        "ao_contrast": data.global_ao_contrast,
-        "curvature_exponent": data.global_curvature_exponent,
-        "curvature_contrast": data.global_curvature_contrast,
-        "thickness_samples": data.global_thickness_samples,
-        "thickness_render_samples": data.global_thickness_render_samples,
-        "thickness_distance": data.global_thickness_distance,
-        "normals_suffix": data.global_normals_suffix,
-        "tangent_suffix": data.global_tangent_suffix,
-        "ao_suffix": data.global_ao_suffix,
-        "curvature_suffix": data.global_curvature_suffix,
-        "thickness_suffix": data.global_thickness_suffix,
-        "position_suffix": data.global_position_suffix,
-        "random_island_suffix": data.global_random_island_suffix,
-        "color_attribute_suffix": data.global_color_attribute_suffix,
-        "color_attribute_name": data.global_color_attribute_name,
+        "resolution": resolution,
         "dilation": data.global_dilation,
         "msaa": data.global_msaa,
         "output_format": data.output_format,
@@ -849,13 +803,13 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
 
 class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
     bl_idname = "bakery.bake_all"
-    bl_label = "Bake All"
-    bl_description = "Bake all texture sets"
+    bl_label = "Bake"
+    bl_description = "Bake the checked texture sets"
 
-    # bake every texture set.
+    # bake the checked texture sets.
     def execute(self, context):
-        # bake every texture set in order.
-        # route to the shared bake pipeline for all texture sets.
+        # bake the checked texture sets in order.
+        # route to the shared bake pipeline for checked sets.
         if not _ensure_saved_blend(self, context):
             return {"CANCELLED"}
         data = context.scene.bakery_data
@@ -863,37 +817,25 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
             self.report({"WARNING"}, "No texture sets to bake")
             return {"CANCELLED"}
 
-        result = _bake_texture_sets(self, context, data.texture_sets, "Bake All")
+        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
+        if not selected_sets:
+            _popup_error(context, "Please check at least one texture set")
+            self.report({"WARNING"}, "Please check at least one texture set")
+            return {"CANCELLED"}
+        result = _bake_texture_sets(self, context, selected_sets, "Bake")
         return {"FINISHED"} if result else {"CANCELLED"}
 
 
 class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
     bl_idname = "bakery.bake_selected_set"
     bl_label = "Bake Selected Sets"
-    bl_description = "Bake the checked texture sets"
+    bl_description = "Deprecated"
 
-    # bake only the active texture set.
+    # deprecated entry point (kept for safety if wired elsewhere).
     def execute(self, context):
-        # bake only the currently active texture set.
-        # route to the shared bake pipeline for just the active set.
-        if not _ensure_saved_blend(self, context):
-            return {"CANCELLED"}
-        data = context.scene.bakery_data
-        if not data.texture_sets:
-            self.report({"WARNING"}, "No texture sets available")
-            return {"CANCELLED"}
-        selected_sets = [tex_set for tex_set in data.texture_sets if tex_set.enabled]
-        if not selected_sets:
-            _popup_error(context, "Please check at least one texture set")
-            self.report({"WARNING"}, "Please check at least one texture set")
-            return {"CANCELLED"}
-        result = _bake_texture_sets(
-            self,
-            context,
-            selected_sets,
-            "Bake Selected Sets",
-        )
-        return {"FINISHED"} if result else {"CANCELLED"}
+        _popup_error(context, "Use the Bake button instead")
+        self.report({"WARNING"}, "Use the Bake button instead")
+        return {"CANCELLED"}
 
 
 class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
@@ -928,6 +870,140 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class Bakery_OT_bake_target_add_global(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_add_global"
+    bl_label = "Add Bake Target"
+    bl_description = "Add a global bake target"
+
+    # add a new global bake target entry.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        item = data.global_bake_targets.add()
+        data.active_global_bake_target_index = len(data.global_bake_targets) - 1
+        item.target_type = "ambient_occlusion"
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_remove_global(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_remove_global"
+    bl_label = "Remove Bake Target"
+    bl_description = "Remove the selected global bake target"
+
+    # remove the active global bake target entry.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_global_bake_target_index
+        if 0 <= index < len(data.global_bake_targets):
+            data.global_bake_targets.remove(index)
+            data.active_global_bake_target_index = min(index, len(data.global_bake_targets) - 1)
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_global_up(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_global_up"
+    bl_label = "Move Bake Target Up"
+    bl_description = "Move the selected global bake target up"
+
+    # move the active global bake target up in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_global_bake_target_index
+        if index > 0:
+            data.global_bake_targets.move(index, index - 1)
+            data.active_global_bake_target_index = index - 1
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_global_down(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_global_down"
+    bl_label = "Move Bake Target Down"
+    bl_description = "Move the selected global bake target down"
+
+    # move the active global bake target down in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_global_bake_target_index
+        if 0 <= index < len(data.global_bake_targets) - 1:
+            data.global_bake_targets.move(index, index + 1)
+            data.active_global_bake_target_index = index + 1
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_add_set(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_add_set"
+    bl_label = "Add Bake Target"
+    bl_description = "Add a bake target to the active texture set"
+
+    # add a new bake target entry to the active set.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        item = tex_set.bake_targets.add()
+        tex_set.active_bake_target_index = len(tex_set.bake_targets) - 1
+        item.target_type = "ambient_occlusion"
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_remove_set(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_remove_set"
+    bl_label = "Remove Bake Target"
+    bl_description = "Remove the selected bake target from the active texture set"
+
+    # remove the active bake target from the set.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        target_index = tex_set.active_bake_target_index
+        if 0 <= target_index < len(tex_set.bake_targets):
+            tex_set.bake_targets.remove(target_index)
+            tex_set.active_bake_target_index = min(target_index, len(tex_set.bake_targets) - 1)
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_set_up(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_set_up"
+    bl_label = "Move Bake Target Up"
+    bl_description = "Move the selected bake target up in the active set"
+
+    # move the active set bake target up in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        target_index = tex_set.active_bake_target_index
+        if target_index > 0:
+            tex_set.bake_targets.move(target_index, target_index - 1)
+            tex_set.active_bake_target_index = target_index - 1
+        return {"FINISHED"}
+
+
+class Bakery_OT_bake_target_move_set_down(bpy.types.Operator):
+    bl_idname = "bakery.bake_target_move_set_down"
+    bl_label = "Move Bake Target Down"
+    bl_description = "Move the selected bake target down in the active set"
+
+    # move the active set bake target down in the list.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if not data.texture_sets or index < 0 or index >= len(data.texture_sets):
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[index]
+        target_index = tex_set.active_bake_target_index
+        if 0 <= target_index < len(tex_set.bake_targets) - 1:
+            tex_set.bake_targets.move(target_index, target_index + 1)
+            tex_set.active_bake_target_index = target_index + 1
+        return {"FINISHED"}
+
+
 # hide the last-bake banner when the user dismisses it.
 class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
     bl_idname = "bakery.hide_last_bake"
@@ -957,11 +1033,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
         operator.report({"WARNING"}, "Please add at least one low poly object")
         return False
 
-    if not any(
-        enabled
-        for ts in texture_sets
-        for _, enabled, _ in _bake_targets_from_settings(_effective_settings(data, ts))
-    ):
+    if not any(_collect_bake_targets(data, ts) for ts in texture_sets):
         _popup_error(context, "Please enable at least one bake target")
         operator.report({"WARNING"}, "Please enable at least one bake target")
         return False
@@ -1001,8 +1073,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     # Pre-calculate total target count for a simple progress bar.
     total_targets = 0
     for tex_set in texture_sets:
-        settings = _effective_settings(data, tex_set)
-        total_targets += sum(1 for _, enabled, _ in _bake_targets_from_settings(settings) if enabled)
+        total_targets += len(_collect_bake_targets(data, tex_set))
     progress_value = 0
     progress_total = max(1, total_targets)
     wm = getattr(context, "window_manager", None)
@@ -1043,9 +1114,10 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 target_resolution[0] * scale_factor,
                 target_resolution[1] * scale_factor,
             )
-            for target_name, enabled, suffix in _bake_targets_from_settings(settings):
-                if not enabled:
-                    continue
+            targets = _collect_bake_targets(data, tex_set)
+            for item in targets:
+                target_name = item.target_type
+                suffix = _target_suffix(item)
 
                 progress_value += 1
                 if wm:
@@ -1060,8 +1132,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 bake.use_clear = False
 
                 needs_material_settings = _prepare_bake_target(
-                    target_name,
-                    settings,
+                    item,
                     material,
                     cycles,
                     bake,
@@ -1069,14 +1140,14 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if needs_material_settings:
                     _set_highpoly_material_settings(
                         material,
-                        settings["ao_samples"],
-                        settings["ao_occlusion_mode"],
-                        settings["ao_distance"],
-                        settings["ao_contrast"],
-                        settings["curvature_exponent"],
-                        settings["curvature_contrast"],
-                        settings["thickness_samples"],
-                        settings["thickness_distance"],
+                        item.ao_samples,
+                        item.ao_occlusion_mode,
+                        item.ao_distance,
+                        item.ao_contrast,
+                        item.curvature_exponent,
+                        item.curvature_contrast,
+                        item.thickness_samples,
+                        item.thickness_distance,
                     )
 
                 for low_item in tex_set.low_polys:
@@ -1097,7 +1168,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for item in high_items:
                             attr_name = (item.color_attribute or "").strip()
                             if not attr_name:
-                                attr_name = settings["color_attribute_name"]
+                                attr_name = item.color_attribute_name
                             mat = _copy_color_attribute_material(
                                 material,
                                 attr_name,
@@ -1113,7 +1184,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     )
                     restore_hide_render = None
                     if target_name == "ambient_occlusion":
-                        occlusion_mode = settings["ao_occlusion_mode"]
+                        occlusion_mode = item.ao_occlusion_mode
                         if occlusion_mode in {"SET", "LOCAL"}:
                             restore_hide_render = {obj: obj.hide_render for obj in scene.objects}
                             for obj in scene.objects:
@@ -1262,6 +1333,14 @@ classes = (
     DUMMYBAKE_OT_bake_selected_set,
     DUMMYBAKE_OT_pick_output_dir,
     DUMMYBAKE_OT_hide_last_bake,
+    Bakery_OT_bake_target_add_global,
+    Bakery_OT_bake_target_remove_global,
+    Bakery_OT_bake_target_move_global_up,
+    Bakery_OT_bake_target_move_global_down,
+    Bakery_OT_bake_target_add_set,
+    Bakery_OT_bake_target_remove_set,
+    Bakery_OT_bake_target_move_set_up,
+    Bakery_OT_bake_target_move_set_down,
 )
 
 

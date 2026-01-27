@@ -67,6 +67,31 @@ def _draw_thickness_options(layout, obj, prefix):
     _draw_custom_suffix(layout, obj, prefix, "thickness")
 
 
+# draw settings for a single bake target item.
+def _draw_bake_target_settings(layout, item):
+    if item.target_type == "ambient_occlusion":
+        row = layout.split(factor=0.4, align=True)
+        row.label(text="Mode")
+        row.prop(item, "ao_occlusion_mode", text="")
+        layout.prop(item, "ao_samples")
+        layout.prop(item, "ao_render_samples")
+        layout.prop(item, "ao_distance")
+        layout.prop(item, "ao_contrast")
+    elif item.target_type == "curvature":
+        layout.prop(item, "curvature_exponent")
+        layout.prop(item, "curvature_contrast")
+    elif item.target_type == "thickness":
+        layout.prop(item, "thickness_samples")
+        layout.prop(item, "thickness_render_samples")
+        layout.prop(item, "thickness_distance")
+    elif item.target_type == "color_attribute":
+        layout.prop(item, "color_attribute_name")
+
+    layout.prop(item, "custom_suffix")
+    if item.custom_suffix:
+        layout.prop(item, "suffix")
+
+
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
     # draw each texture set row.
     # keep list rows compact: icon + name.
@@ -99,6 +124,15 @@ class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
         op.list_kind = "HIGH"
         op.item_index = index
         row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
+
+
+class BAKERY_UL_bake_targets(bpy.types.UIList):
+    # draw each bake target row.
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "enabled", text="")
+        row.label(icon="IMAGE_PLANE")
+        row.prop(item, "target_type", text="")
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
@@ -146,6 +180,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
+        #header.label(text="About", icon="USER")
         header.label(text="About")
         if data.show_about:
             about_col = about_box.column(align=True)
@@ -167,11 +202,14 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             )
 
         buttons_col = layout.column(align=True)
-        buttons_col.operator("bakery.bake_all", text="Bake All", icon="RENDER_RESULT")
-        buttons_col.operator("bakery.bake_selected_set", text="Bake Selected Sets", icon="FILE_IMAGE")
+        buttons_col.scale_y = 2.0
 
+
+        #buttons_col.operator("bakery.bake_all", text="Bake", icon="SEQUENCE")
+        buttons_col.operator("bakery.bake_all", text="Bake")
         global_box = layout.box()
         header = global_box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_global_settings",
@@ -179,9 +217,9 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Global Settings")
+        header.label(text="Global Settings", icon="TOOL_SETTINGS")
         if data.show_global_settings:
-            sections = _indent_column(global_box)
+            sections = global_box.column(align=True)
 
             header = sections.row(align=True)
             header.prop(
@@ -194,39 +232,29 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             header.label(text="Bake Targets")
             if data.show_bake_targets:
                 bake_col = _indent_column(sections)
-                bake_col.prop(data, "global_bake_tangent_normal")
-                if data.global_bake_tangent_normal:
-                    tangent_col = _indent_column(bake_col)
-                    _draw_custom_suffix(tangent_col, data, "global_", "tangent")
-                bake_col.prop(data, "global_bake_normals_ws")
-                if data.global_bake_normals_ws:
-                    normals_col = _indent_column(bake_col)
-                    _draw_custom_suffix(normals_col, data, "global_", "normals")
-                bake_col.prop(data, "global_bake_ambient_occlusion")
-                if data.global_bake_ambient_occlusion:
-                    ao_col = _indent_column(bake_col)
-                    _draw_ao_options(ao_col, data, "global_")
-                bake_col.prop(data, "global_bake_curvature")
-                if data.global_bake_curvature:
-                    curv_col = _indent_column(bake_col)
-                    _draw_curvature_options(curv_col, data, "global_")
-                bake_col.prop(data, "global_bake_thickness")
-                if data.global_bake_thickness:
-                    thick_col = _indent_column(bake_col)
-                    _draw_thickness_options(thick_col, data, "global_")
-                bake_col.prop(data, "global_bake_position")
-                if data.global_bake_position:
-                    pos_col = _indent_column(bake_col)
-                    _draw_custom_suffix(pos_col, data, "global_", "position")
-                bake_col.prop(data, "global_bake_color_attribute")
-                if data.global_bake_color_attribute:
-                    color_col = _indent_column(bake_col)
-                    color_col.prop(data, "global_color_attribute_name", text="Color Attribute")
-                    _draw_custom_suffix(color_col, data, "global_", "color_attribute")
-                bake_col.prop(data, "global_bake_random_island")
-                if data.global_bake_random_island:
-                    rand_col = _indent_column(bake_col)
-                    _draw_custom_suffix(rand_col, data, "global_", "random_island")
+                row = bake_col.row()
+                row.template_list(
+                    "BAKERY_UL_bake_targets",
+                    "",
+                    data,
+                    "global_bake_targets",
+                    data,
+                    "active_global_bake_target_index",
+                    rows=4,
+                )
+                col = row.column(align=True)
+                col.operator("bakery.bake_target_add_global", icon="ADD", text="")
+                col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
+                col.separator()
+                col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
+                col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
+
+                if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
+                    item = data.global_bake_targets[data.active_global_bake_target_index]
+                    settings_col = bake_col.column(align=True)
+                    settings_col.separator()
+                    settings_col.label(text="Target Settings:")
+                    _draw_bake_target_settings(settings_col, item)
 
             header = sections.row(align=True)
             header.prop(
@@ -282,6 +310,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
         box = layout.box()
         header = box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_texture_sets",
@@ -289,10 +318,11 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Texture Sets")
+        header.label(text="Texture Sets", icon="RENDER_RESULT")
         tex_set = None
         if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
             tex_set = data.texture_sets[data.active_texture_index]
+
         if data.show_texture_sets:
             row = box.row()
             row.template_list(
@@ -315,45 +345,40 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 if tex_set.override_global_settings:
                     set_col = _indent_column(box)
                     _draw_resolution_row(set_col, tex_set, "size")
-                    set_col.prop(tex_set, "bake_tangent_normal")
-                    if tex_set.bake_tangent_normal:
-                        tangent_col = _indent_column(set_col)
-                        _draw_custom_suffix(tangent_col, tex_set, "", "tangent")
-                    set_col.prop(tex_set, "bake_normals_ws")
-                    if tex_set.bake_normals_ws:
-                        normals_col = _indent_column(set_col)
-                        _draw_custom_suffix(normals_col, tex_set, "", "normals")
-                    set_col.prop(tex_set, "bake_ambient_occlusion")
-                    if tex_set.bake_ambient_occlusion:
-                        ao_col = _indent_column(set_col)
-                        _draw_ao_options(ao_col, tex_set, "")
-                    set_col.prop(tex_set, "bake_curvature")
-                    if tex_set.bake_curvature:
-                        curv_col = _indent_column(set_col)
-                        _draw_curvature_options(curv_col, tex_set, "")
-                    set_col.prop(tex_set, "bake_thickness")
-                    if tex_set.bake_thickness:
-                        thick_col = _indent_column(set_col)
-                        _draw_thickness_options(thick_col, tex_set, "")
-                    set_col.prop(tex_set, "bake_position")
-                    if tex_set.bake_position:
-                        pos_col = _indent_column(set_col)
-                        _draw_custom_suffix(pos_col, tex_set, "", "position")
-                    set_col.prop(tex_set, "bake_color_attribute")
-                    if tex_set.bake_color_attribute:
-                        color_col = _indent_column(set_col)
-                        color_col.prop(tex_set, "color_attribute_name", text="Color Attribute")
-                        _draw_custom_suffix(color_col, tex_set, "", "color_attribute")
-                    set_col.prop(tex_set, "bake_random_island")
-                    if tex_set.bake_random_island:
-                        rand_col = _indent_column(set_col)
-                        _draw_custom_suffix(rand_col, tex_set, "", "random_island")
+
+                box.prop(tex_set, "override_bake_targets")
+                if tex_set.override_bake_targets:
+                    row = _indent_column(box)
+                    row.prop(tex_set, "bake_target_mode")
+                    list_row = row.row()
+                    list_row.template_list(
+                        "BAKERY_UL_bake_targets",
+                        "",
+                        tex_set,
+                        "bake_targets",
+                        tex_set,
+                        "active_bake_target_index",
+                        rows=4,
+                    )
+                    col = list_row.column(align=True)
+                    col.operator("bakery.bake_target_add_set", icon="ADD", text="")
+                    col.operator("bakery.bake_target_remove_set", icon="REMOVE", text="")
+                    col.separator()
+                    col.operator("bakery.bake_target_move_set_up", icon="TRIA_UP", text="")
+                    col.operator("bakery.bake_target_move_set_down", icon="TRIA_DOWN", text="")
+                    if tex_set.bake_targets and 0 <= tex_set.active_bake_target_index < len(tex_set.bake_targets):
+                        item = tex_set.bake_targets[tex_set.active_bake_target_index]
+                        settings_col = row.column(align=True)
+                        settings_col.separator()
+                        settings_col.label(text="Target Settings:")
+                        _draw_bake_target_settings(settings_col, item)
 
         if not tex_set:
             return
 
         low_box = layout.box()
         header = low_box.row(align=True)
+        header.scale_y = 1.4
         header.prop(
             data,
             "show_low_polys",
@@ -361,7 +386,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Low Poly")
+        header.label(text="Low Poly", icon="MESH_ICOSPHERE")
         if data.show_low_polys:
             row = low_box.row()
             row.template_list(
@@ -402,6 +427,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             low_item = tex_set.low_polys[tex_set.active_low_index]
             high_box = layout.box()
             high_header = high_box.row(align=True)
+            high_header.scale_y = 1.4
             high_header.prop(
                 data,
                 "show_high_polys",
@@ -409,7 +435,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            high_header.label(text="High Poly")
+            high_header.label(text="High Poly", icon="MESH_UVSPHERE")
             if data.show_high_polys:
                 row = high_box.row()
                 row.template_list(
@@ -438,6 +464,7 @@ classes = (
     DUMMYBAKE_UL_texture_sets,
     DUMMYBAKE_UL_low_polys,
     DUMMYBAKE_UL_high_polys,
+    BAKERY_UL_bake_targets,
     DUMMYBAKE_PT_tools,
 )
 
