@@ -4,11 +4,11 @@ from .draw_helpers import _indent_column, _draw_resolution_row, _draw_bake_targe
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
-    bl_label = "Bakery"
+    bl_label = "Little Bakery"
     bl_idname = "DUMMYBAKE_PT_tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Bakery"
+    bl_category = "Little Bakery"
 
     def draw(self, context):
         layout = self.layout
@@ -19,56 +19,53 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 _ensure_defaults(context.scene)
             except Exception:
                 pass
+        def _draw_about(section_layout, force_expand=False):
+            about_box = section_layout.box()
+            header = about_box.row(align=True)
+            header.prop(
+                data,
+                "show_about",
+                icon="TRIA_DOWN" if (data.show_about or force_expand) else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Little Bakery")
+            #header.label(text="About", icon="USER")
+            if data.show_about or force_expand:
+                about_col = about_box.column(align=True)
+
+                label_row = about_col.row()
+                label_row.alignment = "CENTER"
+                label_row.label(text="BAKED WITH LOVE!")
+
+                label_row = about_col.row()
+                label_row.alignment = "CENTER"
+                label_row.label(text="for everybody")
+
+                row = about_col.row(align=True)
+                row.operator("wm.url_open", text="GitHub").url = "https://github.com/tomankirilov/dummy_bake_tools"
+                row.operator("wm.url_open", text="Tomanov").url = "https://tomanov.art/"
 
         # only show baking progress and about while baking.
         if data.is_baking:
             progress_box = layout.box()
             title_row = progress_box.row()
-            title_row.alert = True
+            
+            
+            #title_row.alert = True #make the text red
             title_row.alignment = "CENTER"
             title_row.label(text="BAKING IN PROGRESS", icon="ERROR")
+
             info_col = progress_box.column(align=True)
             info_col.label(text=f"- Set: {data.baking_set_name}")
             info_col.label(text=f"- Target: {data.baking_target_name}")
-            progress_box.prop(data, "baking_progress", text="Progress", slider=True)
 
-            about_box = layout.box()
-            header = about_box.row(align=True)
-            header.prop(
-                data,
-                "show_about",
-                icon="TRIA_DOWN" if data.show_about else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="About", icon="USER")
-            about_col = about_box.column(align=True)
-            label_row = about_col.row()
-            label_row.alignment = "CENTER"
-            label_row.label(text="Baked with love for everybody!")
-            row = about_col.row(align=True)
-            row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
-            row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
+            
+            progress_box.prop(data, "baking_progress", text="Progress", slider=True)
+            _draw_about(layout, force_expand=True)
             return
 
-        about_box = layout.box()
-        header = about_box.row(align=True)
-        header.prop(
-            data,
-            "show_about",
-            icon="TRIA_DOWN" if data.show_about else "TRIA_RIGHT",
-            icon_only=True,
-            emboss=False,
-        )
-        header.label(text="About", icon="USER")
-        if data.show_about:
-            about_col = about_box.column(align=True)
-            label_row = about_col.row()
-            label_row.alignment = "CENTER"
-            label_row.label(text="Baked with love for everybody!")
-            row = about_col.row(align=True)
-            row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
-            row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
+        _draw_about(layout)
 
         if data.show_last_bake and data.last_bake_duration:
             last_box = layout.box()

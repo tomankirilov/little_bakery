@@ -1,11 +1,11 @@
 import bpy
 
 bl_info = {
-    "name": "Bakery",
+    "name": "Little Bakery",
     "author": "tomanov",
     "version": (1, 0, 0),
     "blender": (5, 0, 0),
-    "location": "View3D > Sidebar > Bakery",
+    "location": "View3D > Sidebar > Little Bakery",
     "description": "bake automation",
     "category": "Object",
 }
@@ -34,16 +34,18 @@ class BakeryPreferences(bpy.types.AddonPreferences):
         default="_",
     )
 
-    # Draw Preferences UI.
+    # Draw Preferences UI:
     def draw(self, context):
 
         layout = self.layout
-        layout.prop(self, "debug_logging")
         layout.prop(self, "save_before_bake")
         layout.prop(self, "name_separator")
-        row = layout.row(align=True)
-        row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
-        row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
+        layout.prop(self, "debug_logging")
+
+        # Links:
+        #row = layout.row(align=True)
+        #row.operator("wm.url_open", text="GitHub").url = "https://tomanov.art/"
+        #row.operator("wm.url_open", text="Author").url = "https://tomanov.art/"
 
 _modules = (properties, operators, ui)
 
