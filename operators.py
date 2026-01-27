@@ -9,34 +9,25 @@ _HIGH_MATERIAL_NODE_NAME = "_bakery_node_group"
 _BAKE_MODE_INPUT_INDEX = 0
 _TEMP_COLLECTION_NAME = "Bakery_Temp"
 _BAKE_MODE_MAP = {
-    "normals_ws": "normalws",
+    "ambient_occlusion": "ambient_occlusion",
+    "curvature": "curvature",
+    "thickness": "thickness",
+    "random_island": "random_island",
+    "color_attribute": "color_attribute",
+    "bakery_position": "bakery_position",
+}
+_TARGET_LABELS = {
+    "normal": "normal",
+    "normals_ws": "object_space_normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
     "thickness": "thickness",
     "position": "position",
-    "random_island": "random_island",
+    "bakery_position": "bakery_position",
     "color_attribute": "color_attribute",
+    "random_island": "random_island",
 }
-_TARGET_LABELS = {
-    "tangent_normal": "Tangent Space Normal",
-    "normals_ws": "Object Space Normal",
-    "ambient_occlusion": "Ambient Occlusion",
-    "curvature": "Curvature",
-    "thickness": "Thickness",
-    "position": "Position",
-    "color_attribute": "Color Attribute",
-    "random_island": "Random Island",
-}
-_DEFAULT_SUFFIX = {
-    "tangent_normal": "_tangent_normal",
-    "normals_ws": "_normals_ws",
-    "ambient_occlusion": "_ambient_occlusion",
-    "curvature": "_curvature",
-    "thickness": "_thickness",
-    "position": "_position",
-    "color_attribute": "_color_attribute",
-    "random_island": "_random_island",
-}
+_TARGET_NAME_SEPARATOR = "_"
 
 # Grab addon preferences if they exist (read debug)
 def _get_addon_prefs(context):
@@ -404,18 +395,28 @@ def _relative_to_blend(path):
 def _collect_bake_targets(data, tex_set):
     # build the final target list (global + optional set override).
     global_targets = [item for item in data.global_bake_targets if item.enabled]
-    if tex_set and tex_set.override_bake_targets:
+    set_targets = [item for item in tex_set.bake_targets if item.enabled] if tex_set else []
+    if set_targets:
         if tex_set.bake_target_mode == "REPLACE":
-            return [item for item in tex_set.bake_targets if item.enabled]
-        return global_targets + [item for item in tex_set.bake_targets if item.enabled]
+            return set_targets
+        return global_targets + set_targets
     return global_targets
 
 
-# choose a suffix for a target item.
-def _target_suffix(item):
-    if item.custom_suffix and item.suffix:
-        return item.suffix
-    return _DEFAULT_SUFFIX.get(item.target_type, "")
+# choose a display name for a target item.
+def _target_display_name(item):
+    name = (item.name or "").strip()
+    if name:
+        return name
+    return _TARGET_LABELS.get(item.target_type, item.target_type)
+
+
+# build the final texture name from set + target name.
+def _target_texture_name(tex_set, item):
+    target_name = _target_display_name(item)
+    if not target_name:
+        return tex_set.name
+    return f"{tex_set.name}{_TARGET_NAME_SEPARATOR}{target_name}"
 
 # convert the MSAA choice into a numeric scale factor.
 def _msaa_factor(value):
@@ -456,12 +457,26 @@ def _copy_color_attribute_material(base_material, attribute_name, cache, created
 def _prepare_bake_target(item, material, cycles, bake):
     # configure Cycles bake settings and the shared material for the target.
     target_name = item.target_type
-    if target_name == "tangent_normal":
+    if target_name == "normal":
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
-        bake.normal_space = "TANGENT"
+        bake.normal_space = item.normal_space
+        bake.normal_r = item.normal_r
+        bake.normal_g = item.normal_g
+        bake.normal_b = item.normal_b
         return False
-
+    if target_name == "normals_ws":
+        cycles.samples = 1
+        cycles.bake_type = "NORMAL"
+        bake.normal_space = "OBJECT"
+        bake.normal_r = item.normal_r
+        bake.normal_g = item.normal_g
+        bake.normal_b = item.normal_b
+        return False
+    if target_name == "position":
+        cycles.samples = 1
+        cycles.bake_type = "POSITION"
+        return False
     cycles.bake_type = "EMIT"
     if target_name == "ambient_occlusion":
         cycles.samples = item.ao_render_samples
@@ -484,14 +499,22 @@ def _prepare_bake_target(item, material, cycles, bake):
 # merge global settings with per-texture-set overrides.
 def _effective_settings(data, tex_set):
     # keep only shared settings here (targets are separate now).
-    if tex_set.override_global_settings:
+    if tex_set.override_resolution:
         resolution = tex_set.size
     else:
         resolution = data.global_resolution
+    if tex_set.override_dilation:
+        dilation = tex_set.set_dilation
+    else:
+        dilation = data.global_dilation
+    if tex_set.override_msaa:
+        msaa = tex_set.set_msaa
+    else:
+        msaa = data.global_msaa
     return {
         "resolution": resolution,
-        "dilation": data.global_dilation,
-        "msaa": data.global_msaa,
+        "dilation": dilation,
+        "msaa": msaa,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
         "output_color_depth": data.output_color_depth,
@@ -524,6 +547,9 @@ def _capture_scene_settings(scene):
         "max_ray_distance": bake.max_ray_distance,
         "bake_type": cycles.bake_type,
         "normal_space": bake.normal_space,
+        "normal_r": bake.normal_r,
+        "normal_g": bake.normal_g,
+        "normal_b": bake.normal_b,
     }
 
 # apply a predictable scene setup for baking.
@@ -569,6 +595,9 @@ def _restore_scene_settings(scene, saved):
     bake.max_ray_distance = saved["max_ray_distance"]
     cycles.bake_type = saved["bake_type"]
     bake.normal_space = saved["normal_space"]
+    bake.normal_r = saved["normal_r"]
+    bake.normal_g = saved["normal_g"]
+    bake.normal_b = saved["normal_b"]
 
 
 class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
@@ -581,7 +610,7 @@ class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
         # add a new texture set and make it active.
         data = context.scene.bakery_data
         item = data.texture_sets.add()
-        item.name = f"Texture Set {len(data.texture_sets)}"
+        item.name = f"texture_set_{len(data.texture_sets)}"
         data.active_texture_index = len(data.texture_sets) - 1
         return {"FINISHED"}
 
@@ -875,12 +904,38 @@ class Bakery_OT_bake_target_add_global(bpy.types.Operator):
     bl_label = "Add Bake Target"
     bl_description = "Add a global bake target"
 
+    target_type: bpy.props.EnumProperty(
+        name="Target",
+        items=[
+            ("normal", "Normal", ""),
+            ("normals_ws", "Object Space Normal", ""),
+            ("ambient_occlusion", "Ambient Occlusion", ""),
+            ("curvature", "Curvature", ""),
+            ("thickness", "Thickness", ""),
+            ("position", "Position", ""),
+            ("bakery_position", "Bakery Position", ""),
+            ("color_attribute", "Color Attribute", ""),
+            ("random_island", "Random Island", ""),
+        ],
+        default="ambient_occlusion",
+    )
+
+    # show a popup to pick the target type.
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    # draw the popup UI.
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "target_type", text="")
+
     # add a new global bake target entry.
     def execute(self, context):
         data = context.scene.bakery_data
         item = data.global_bake_targets.add()
         data.active_global_bake_target_index = len(data.global_bake_targets) - 1
-        item.target_type = "ambient_occlusion"
+        item.target_type = self.target_type
+        item.name = _TARGET_LABELS.get(item.target_type, item.target_type)
         return {"FINISHED"}
 
 
@@ -934,6 +989,31 @@ class Bakery_OT_bake_target_add_set(bpy.types.Operator):
     bl_label = "Add Bake Target"
     bl_description = "Add a bake target to the active texture set"
 
+    target_type: bpy.props.EnumProperty(
+        name="Target",
+        items=[
+            ("normal", "Normal", ""),
+            ("normals_ws", "Object Space Normal", ""),
+            ("ambient_occlusion", "Ambient Occlusion", ""),
+            ("curvature", "Curvature", ""),
+            ("thickness", "Thickness", ""),
+            ("position", "Position", ""),
+            ("bakery_position", "Bakery Position", ""),
+            ("color_attribute", "Color Attribute", ""),
+            ("random_island", "Random Island", ""),
+        ],
+        default="ambient_occlusion",
+    )
+
+    # show a popup to pick the target type.
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    # draw the popup UI.
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "target_type", text="")
+
     # add a new bake target entry to the active set.
     def execute(self, context):
         data = context.scene.bakery_data
@@ -943,7 +1023,8 @@ class Bakery_OT_bake_target_add_set(bpy.types.Operator):
         tex_set = data.texture_sets[index]
         item = tex_set.bake_targets.add()
         tex_set.active_bake_target_index = len(tex_set.bake_targets) - 1
-        item.target_type = "ambient_occlusion"
+        item.target_type = self.target_type
+        item.name = _TARGET_LABELS.get(item.target_type, item.target_type)
         return {"FINISHED"}
 
 
@@ -1117,17 +1198,17 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             targets = _collect_bake_targets(data, tex_set)
             for item in targets:
                 target_name = item.target_type
-                suffix = _target_suffix(item)
 
                 progress_value += 1
                 if wm:
                     wm.progress_update(progress_value)
-                target_label = _TARGET_LABELS.get(target_name, target_name)
+                target_label = _target_display_name(item)
                 data.baking_target_name = target_label
                 data.baking_progress = progress_value / progress_total
                 _progress(operator, context, f"{label}: {tex_set.name} - {target_label}")
 
-                image = _make_image(f"{tex_set.name}{suffix}", bake_resolution[0], bake_resolution[1])
+                texture_name = _target_texture_name(tex_set, item)
+                image = _make_image(texture_name, bake_resolution[0], bake_resolution[1])
                 _clear_image(image)
                 bake.use_clear = False
 
@@ -1220,11 +1301,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
                     bake.use_cage = low_item.use_cage
                     bake.cage_object = low_item.cage_object if low_item.use_cage else None
-                    if low_item.override_global_settings:
+                    if low_item.override_cage_extrusion:
                         bake.cage_extrusion = low_item.cage_extrusion
-                        bake.max_ray_distance = low_item.cage_max_ray_distance
                     else:
                         bake.cage_extrusion = data.global_extrusion
+                    if low_item.override_cage_max_ray_distance:
+                        bake.max_ray_distance = low_item.cage_max_ray_distance
+                    else:
                         bake.max_ray_distance = data.global_max_ray_distance
 
                     material_slot = _ensure_low_material(low_obj)
@@ -1276,7 +1359,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 _save_image(
                     image,
                     data.output_dir,
-                    f"{tex_set.name}{suffix}.{extension}",
+                    f"{texture_name}.{extension}",
                     settings,
                     scene=scene,
                     context=context,
@@ -1304,6 +1387,23 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 bpy.data.node_groups.remove(group, do_unlink=True)
             except RuntimeError:
                 pass
+        temp_collection = bpy.data.collections.get(_TEMP_COLLECTION_NAME)
+        if temp_collection:
+            for obj in list(temp_collection.objects):
+                try:
+                    temp_collection.objects.unlink(obj)
+                except RuntimeError:
+                    pass
+            if temp_collection.name in scene.collection.children:
+                try:
+                    scene.collection.children.unlink(temp_collection)
+                except RuntimeError:
+                    pass
+            if temp_collection.users == 0:
+                try:
+                    bpy.data.collections.remove(temp_collection)
+                except RuntimeError:
+                    pass
         if material and material.name == _HIGH_MATERIAL_NAME:
             try:
                 bpy.data.materials.remove(material, do_unlink=True)

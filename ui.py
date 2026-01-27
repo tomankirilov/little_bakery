@@ -23,17 +23,6 @@ def _draw_resolution_row(layout, obj, prop_name):
     row.prop(obj, prop_name, text="")
 
 
-# draw custom suffix toggles and inputs.
-def _draw_custom_suffix(layout, obj, prefix, base):
-    # show suffix fields only when the custom toggle is on.
-    # only show suffix fields when the custom flag is enabled.
-    flag_name = f"{prefix}{base}_custom_suffix"
-    value_name = f"{prefix}{base}_suffix"
-    layout.prop(obj, flag_name)
-    if getattr(obj, flag_name):
-        layout.prop(obj, value_name)
-
-
 # draw all ambient occlusion settings.
 def _draw_ao_options(layout, obj, prefix):
     # group all AO settings under the AO toggle.
@@ -45,7 +34,6 @@ def _draw_ao_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}ao_render_samples")
     layout.prop(obj, f"{prefix}ao_distance")
     layout.prop(obj, f"{prefix}ao_contrast")
-    _draw_custom_suffix(layout, obj, prefix, "ao")
 
 
 # draw all curvature settings.
@@ -54,7 +42,6 @@ def _draw_curvature_options(layout, obj, prefix):
     # Curvature needs two sliders, so I group them here.
     layout.prop(obj, f"{prefix}curvature_exponent")
     layout.prop(obj, f"{prefix}curvature_contrast")
-    _draw_custom_suffix(layout, obj, prefix, "curvature")
 
 
 # draw all thickness settings.
@@ -64,11 +51,13 @@ def _draw_thickness_options(layout, obj, prefix):
     layout.prop(obj, f"{prefix}thickness_samples")
     layout.prop(obj, f"{prefix}thickness_render_samples")
     layout.prop(obj, f"{prefix}thickness_distance")
-    _draw_custom_suffix(layout, obj, prefix, "thickness")
 
 
 # draw settings for a single bake target item.
 def _draw_bake_target_settings(layout, item):
+    row = layout.split(factor=0.4, align=True)
+    row.label(text="Target")
+    row.prop(item, "target_type", text="")
     if item.target_type == "ambient_occlusion":
         row = layout.split(factor=0.4, align=True)
         row.label(text="Mode")
@@ -77,6 +66,22 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "ao_render_samples")
         layout.prop(item, "ao_distance")
         layout.prop(item, "ao_contrast")
+    elif item.target_type in {"normal", "normals_ws"}:
+        row = layout.split(factor=0.4, align=True)
+        row.label(text="Space")
+        space_row = row.row(align=True)
+        if item.target_type == "normals_ws":
+            space_row.enabled = False
+        space_row.prop(item, "normal_space", text="")
+        row = layout.split(factor=0.4, align=True)
+        row.label(text="Swizzle R")
+        row.prop(item, "normal_r", text="")
+        row = layout.split(factor=0.4, align=True)
+        row.label(text="Swizzle G")
+        row.prop(item, "normal_g", text="")
+        row = layout.split(factor=0.4, align=True)
+        row.label(text="Swizzle B")
+        row.prop(item, "normal_b", text="")
     elif item.target_type == "curvature":
         layout.prop(item, "curvature_exponent")
         layout.prop(item, "curvature_contrast")
@@ -86,10 +91,6 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "thickness_distance")
     elif item.target_type == "color_attribute":
         layout.prop(item, "color_attribute_name")
-
-    layout.prop(item, "custom_suffix")
-    if item.custom_suffix:
-        layout.prop(item, "suffix")
 
 
 class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
@@ -132,7 +133,7 @@ class BAKERY_UL_bake_targets(bpy.types.UIList):
         row = layout.row(align=True)
         row.prop(item, "enabled", text="")
         row.label(icon="IMAGE_PLANE")
-        row.prop(item, "target_type", text="")
+        row.prop(item, "name", text="", emboss=False)
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
@@ -224,41 +225,6 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             header = sections.row(align=True)
             header.prop(
                 data,
-                "show_bake_targets",
-                icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Bake Targets")
-            if data.show_bake_targets:
-                bake_col = _indent_column(sections)
-                row = bake_col.row()
-                row.template_list(
-                    "BAKERY_UL_bake_targets",
-                    "",
-                    data,
-                    "global_bake_targets",
-                    data,
-                    "active_global_bake_target_index",
-                    rows=4,
-                )
-                col = row.column(align=True)
-                col.operator("bakery.bake_target_add_global", icon="ADD", text="")
-                col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
-                col.separator()
-                col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
-                col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
-
-                if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
-                    item = data.global_bake_targets[data.active_global_bake_target_index]
-                    settings_col = bake_col.column(align=True)
-                    settings_col.separator()
-                    settings_col.label(text="Target Settings:")
-                    _draw_bake_target_settings(settings_col, item)
-
-            header = sections.row(align=True)
-            header.prop(
-                data,
                 "show_render_settings",
                 icon="TRIA_DOWN" if data.show_render_settings else "TRIA_RIGHT",
                 icon_only=True,
@@ -308,6 +274,52 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     row.label(text="Compression")
                     row.prop(data, "output_png_compression", text="")
 
+        bake_box = layout.box()
+        header = bake_box.row(align=True)
+        header.scale_y = 1.4
+        header.prop(
+            data,
+            "show_bake_targets",
+            icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Bake Targets", icon="IMAGE")
+        if data.show_bake_targets:
+            bake_col = bake_box.column(align=True)
+            row = bake_col.row()
+            row.template_list(
+                "BAKERY_UL_bake_targets",
+                "",
+                data,
+                "global_bake_targets",
+                data,
+                "active_global_bake_target_index",
+                rows=4,
+            )
+            col = row.column(align=True)
+            col.operator("bakery.bake_target_add_global", icon="ADD", text="")
+            col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
+            col.separator()
+            col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
+            col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
+
+            if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
+                item = data.global_bake_targets[data.active_global_bake_target_index]
+                settings_col = bake_col.column(align=True)
+                settings_col.separator()
+                header = settings_col.row(align=True)
+                header.prop(
+                    item,
+                    "show_settings",
+                    icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                header.label(text="Target Settings")
+                if item.show_settings:
+                    _draw_bake_target_settings(settings_col, item)
+
         box = layout.box()
         header = box.row(align=True)
         header.scale_y = 1.4
@@ -318,7 +330,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Texture Sets", icon="RENDER_RESULT")
+        header.label(text="Texture Settings", icon="RENDER_RESULT")
         tex_set = None
         if data.texture_sets and 0 <= data.active_texture_index < len(data.texture_sets):
             tex_set = data.texture_sets[data.active_texture_index]
@@ -341,12 +353,46 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             clear_op.list_kind = "TEXTURE"
 
             if tex_set:
-                box.prop(tex_set, "override_global_settings")
+                row = box.row(align=True)
+                row.prop(
+                    tex_set,
+                    "override_global_settings",
+                    icon="TRIA_DOWN" if tex_set.override_global_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Render Settings")
                 if tex_set.override_global_settings:
                     set_col = _indent_column(box)
-                    _draw_resolution_row(set_col, tex_set, "size")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_resolution", text="")
+                    res_row = row.row(align=True)
+                    res_row.enabled = tex_set.override_resolution
+                    res_split = res_row.split(factor=0.4, align=True)
+                    res_split.label(text="Resolution")
+                    res_split.prop(tex_set, "size", text="")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_dilation", text="")
+                    dilation_row = row.row(align=True)
+                    dilation_row.enabled = tex_set.override_dilation
+                    dilation_row.prop(tex_set, "set_dilation", text="Dilation (px)")
+                    row = set_col.row(align=True)
+                    row.prop(tex_set, "override_msaa", text="")
+                    msaa_row = row.row(align=True)
+                    msaa_row.enabled = tex_set.override_msaa
+                    msaa_split = msaa_row.split(factor=0.4, align=True)
+                    msaa_split.label(text="MSAA")
+                    msaa_split.prop(tex_set, "set_msaa", text="")
 
-                box.prop(tex_set, "override_bake_targets")
+                row = box.row(align=True)
+                row.prop(
+                    tex_set,
+                    "override_bake_targets",
+                    icon="TRIA_DOWN" if tex_set.override_bake_targets else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Bake Targets")
                 if tex_set.override_bake_targets:
                     row = _indent_column(box)
                     row.prop(tex_set, "bake_target_mode")
@@ -370,8 +416,17 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         item = tex_set.bake_targets[tex_set.active_bake_target_index]
                         settings_col = row.column(align=True)
                         settings_col.separator()
-                        settings_col.label(text="Target Settings:")
-                        _draw_bake_target_settings(settings_col, item)
+                        header = settings_col.row(align=True)
+                        header.prop(
+                            item,
+                            "show_settings",
+                            icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
+                            icon_only=True,
+                            emboss=False,
+                        )
+                        header.label(text="Target Settings")
+                        if item.show_settings:
+                            _draw_bake_target_settings(settings_col, item)
 
         if not tex_set:
             return
@@ -407,9 +462,24 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
                 low_item = tex_set.low_polys[tex_set.active_low_index]
                 low_box.label(text="Low Poly Settings")
-                low_box.prop(low_item, "use_cage")
-                if low_item.use_cage:
-                    low_box.prop_search(
+                row = low_box.row(align=True)
+                row.prop(
+                    low_item,
+                    "override_global_settings",
+                    icon="TRIA_DOWN" if low_item.override_global_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override Global Settings")
+                if low_item.override_global_settings:
+                    cage_col = low_box.column(align=True)
+                    cage_row = cage_col.row(align=True)
+                    cage_row.prop(low_item, "use_cage", text="")
+                    cage_row.label(text="Cage")
+                    picker_row = cage_row.row(align=True)
+                    picker_row.scale_x = 1.6
+                    picker_row.enabled = low_item.use_cage
+                    picker_row.prop_search(
                         low_item,
                         "cage_object",
                         context.scene,
@@ -417,11 +487,16 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                         text="",
                         icon="VIEWZOOM",
                     )
-                low_box.prop(low_item, "override_global_settings")
-                if low_item.override_global_settings:
-                    cage_col = low_box.column(align=True)
-                    cage_col.prop(low_item, "cage_extrusion", text="Cage Extrusion")
-                    cage_col.prop(low_item, "cage_max_ray_distance")
+                    row = cage_col.row(align=True)
+                    row.prop(low_item, "override_cage_extrusion", text="")
+                    extrusion_row = row.row(align=True)
+                    extrusion_row.enabled = low_item.override_cage_extrusion
+                    extrusion_row.prop(low_item, "cage_extrusion", text="Cage Extrusion")
+                    row = cage_col.row(align=True)
+                    row.prop(low_item, "override_cage_max_ray_distance", text="")
+                    ray_row = row.row(align=True)
+                    ray_row.enabled = low_item.override_cage_max_ray_distance
+                    ray_row.prop(low_item, "cage_max_ray_distance")
 
         if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
             low_item = tex_set.low_polys[tex_set.active_low_index]
