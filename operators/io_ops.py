@@ -4,7 +4,7 @@ import bpy
 from .bake_utils import _resolve_output_dir, _relative_to_blend
 
 
-class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
+class BAKERY_OT_pick_output_dir(bpy.types.Operator):
     bl_idname = "bakery.pick_output_dir"
     bl_label = "Pick Output Folder"
     bl_description = "Choose a subfolder relative to the current blend file"
@@ -36,7 +36,7 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_open_output_dir(bpy.types.Operator):
+class BAKERY_OT_open_output_dir(bpy.types.Operator):
     bl_idname = "bakery.open_output_dir"
     bl_label = "Open Bake Folder"
     bl_description = "Open the current bake output folder"

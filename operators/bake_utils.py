@@ -38,7 +38,7 @@ def _get_addon_prefs(context):
     if not prefs:
         return None
     root_package = __package__.split(".")[0] if __package__ else ""
-    candidates = [root_package, "dummy_bake_tools", "bakery"]
+    candidates = [root_package, "bakery"]
     for key in candidates:
         if not key:
             continue

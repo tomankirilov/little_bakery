@@ -112,7 +112,7 @@ def _draw_about(section_layout, data, force_expand=False):
             "wm.url_open",
             text="GitHub",
             icon="EXPERIMENTAL",
-        ).url = "https://github.com/tomankirilov/dummy_bake_tools"
+        ).url = "https://github.com/tomankirilov/little_bakery"
         # buttons_col.operator(
         #     "wm.url_open",
         #     text="Documentation",
@@ -127,9 +127,9 @@ def _draw_about(section_layout, data, force_expand=False):
         about_col.separator(factor=0.5)
 
 
-class DUMMYBAKE_PT_completed(bpy.types.Panel):
+class BAKERY_PT_completed(bpy.types.Panel):
     bl_label = ""
-    bl_idname = "DUMMYBAKE_PT_completed"
+    bl_idname = "BAKERY_PT_completed"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Little Bakery"
@@ -172,9 +172,9 @@ class DUMMYBAKE_PT_completed(bpy.types.Panel):
         _draw_about(layout, data, force_expand=True)
 
 
-class DUMMYBAKE_PT_tools(bpy.types.Panel):
+class BAKERY_PT_tools(bpy.types.Panel):
     bl_label = "Little Bakery"
-    bl_idname = "DUMMYBAKE_PT_tools"
+    bl_idname = "BAKERY_PT_tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Little Bakery"
@@ -243,7 +243,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     "wm.url_open",
                     text="GitHub",
                     icon="EXPERIMENTAL",
-                ).url = "https://github.com/tomankirilov/dummy_bake_tools"
+                ).url = "https://github.com/tomankirilov/little_bakery"
                 # buttons_col.operator(
                 #     "wm.url_open",
                 #     text="Documentation",
@@ -481,7 +481,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         if data.show_texture_sets:
             row = box.row()
             row.template_list(
-                "DUMMYBAKE_UL_texture_sets",
+                "BAKERY_UL_texture_sets",
                 "",
                 data,
                 "texture_sets",
@@ -588,7 +588,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         if data.show_low_polys:
             row = low_box.row()
             row.template_list(
-                "DUMMYBAKE_UL_low_polys",
+                "BAKERY_UL_low_polys",
                 "",
                 tex_set,
                 "low_polys",
@@ -656,7 +656,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if data.show_high_polys:
                 row = high_box.row()
                 row.template_list(
-                    "DUMMYBAKE_UL_high_polys",
+                "BAKERY_UL_high_polys",
                     "",
                     low_item,
                     "high_polys",

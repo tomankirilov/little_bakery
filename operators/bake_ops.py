@@ -3,7 +3,7 @@ import bpy
 from .bake_utils import _ensure_saved_blend, _popup_error, _bake_texture_sets
 
 
-class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
+class BAKERY_OT_bake_all(bpy.types.Operator):
     bl_idname = "bakery.bake_all"
     bl_label = "Bake"
     bl_description = "Bake the checked texture sets"
@@ -28,7 +28,7 @@ class DUMMYBAKE_OT_bake_all(bpy.types.Operator):
         return {"FINISHED"} if result else {"CANCELLED"}
 
 
-class DUMMYBAKE_OT_bake_selected_set(bpy.types.Operator):
+class BAKERY_OT_bake_selected_set(bpy.types.Operator):
     bl_idname = "bakery.bake_selected_set"
     bl_label = "Bake Selected Sets"
     bl_description = "Deprecated"

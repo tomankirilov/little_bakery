@@ -3,7 +3,7 @@ import bpy
 from .bake_utils import _GEOMETRY_SKIP_TYPES
 
 
-class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
+class BAKERY_OT_texture_set_add(bpy.types.Operator):
     bl_idname = "bakery.texture_set_add"
     bl_label = "Add Texture Set"
     bl_description = "Add a new texture set"
@@ -18,7 +18,7 @@ class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
+class BAKERY_OT_texture_set_remove(bpy.types.Operator):
     bl_idname = "bakery.texture_set_remove"
     bl_label = "Remove Texture Set"
     bl_description = "Remove the selected texture set"
@@ -37,7 +37,7 @@ class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
+class BAKERY_OT_low_poly_add(bpy.types.Operator):
     bl_idname = "bakery.low_poly_add"
     bl_label = "Add Low Poly"
     bl_description = "Add a low poly entry to the selected texture set"
@@ -67,7 +67,7 @@ class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
+class BAKERY_OT_low_poly_remove(bpy.types.Operator):
     bl_idname = "bakery.low_poly_remove"
     bl_label = "Remove Low Poly"
     bl_description = "Remove the selected low poly entry"
@@ -89,7 +89,7 @@ class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
+class BAKERY_OT_high_poly_add(bpy.types.Operator):
     bl_idname = "bakery.high_poly_add"
     bl_label = "Add High Poly"
     bl_description = "Add a high poly entry to the selected low poly"
@@ -122,7 +122,7 @@ class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
+class BAKERY_OT_high_poly_remove(bpy.types.Operator):
     bl_idname = "bakery.high_poly_remove"
     bl_label = "Remove High Poly"
     bl_description = "Remove the selected high poly entry"
@@ -147,7 +147,7 @@ class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_select_object(bpy.types.Operator):
+class BAKERY_OT_select_object(bpy.types.Operator):
     bl_idname = "bakery.select_object"
     bl_label = "Select Object"
     bl_description = "Select the object from this list item"
@@ -195,7 +195,7 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
+class BAKERY_OT_clear_selection(bpy.types.Operator):
     bl_idname = "bakery.clear_selection"
     bl_label = "Clear Selection"
     bl_description = "Clear the active list selection"

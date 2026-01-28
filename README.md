@@ -1,10 +1,10 @@
-# Dummy Bake Tools
-## What is Dummy Bake Tools?
-Dummy Bake Tools is a Blender addon that automates baking workflows for texturing.
+# Little Bakery
+## What is Little Bakery?
+Little Bakery is a Blender addon that automates baking workflows for texturing.
 It supports both low to high poly bakes and low poly only bakes.
 
 ## What makes it special?
-Dummy Bake Tools allows for grouping many objects and baking them all with a single click. Settings are saved and rebaking is easy. Bake multiple texture types, multiple objects, combine, mix and match them as you wish.
+Little Bakery allows for grouping many objects and baking them all with a single click. Settings are saved and rebaking is easy. Bake multiple texture types, multiple objects, combine, mix and match them as you wish.
 
 ## What it does
 - Manages texture sets with low poly + high poly lists.
