@@ -618,6 +618,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     _tag_redraw(context)
     created_materials = []
     created_node_groups = []
+    baked_texture_names = set()
     start_time = time.perf_counter()
     cleared_images = set()
     _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
@@ -688,6 +689,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     _clear_image(image)
                     cleared_images.add(image.name)
                 bake.use_clear = False
+                baked_texture_names.add(texture_name)
 
                 needs_material_settings = _prepare_bake_target(
                     item,
@@ -910,6 +912,10 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     minutes, seconds = divmod(int(elapsed), 60)
     data.last_bake_duration = f"{minutes}m {seconds}s"
     data.show_last_bake = True
+    data.last_bake_textures.clear()
+    for name in sorted(baked_texture_names):
+        entry = data.last_bake_textures.add()
+        entry.value = name
     message = f"{label} finished in {elapsed:.2f}s"
     print(f"Bakery: {message}")
     operator.report({"INFO"}, message)

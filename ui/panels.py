@@ -66,12 +66,127 @@ def _version_name():
     return None
 
 
+def _draw_about(section_layout, data, force_expand=False):
+    about_box = section_layout.box()
+    header = about_box.row(align=True)
+    header.prop(
+        data,
+        "show_about",
+        icon="TRIA_DOWN" if (data.show_about or force_expand) else "TRIA_RIGHT",
+        icon_only=True,
+        emboss=False,
+    )
+    header.label(text="Little Bakery", icon="QUESTION")
+    #header.label(text="About", icon="USER")
+    if data.show_about or force_expand:
+        about_col = about_box.column(align=True)
+
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text="BAKED WITH LOVE")
+
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text="♥️ for everybody ♥️")
+
+        about_col.separator(factor=1.0)
+
+        version = _addon_version() or _manifest_version()
+        version_name = _version_name()
+        if version and version_name:
+            version_label = f"({version} - {version_name})"
+        elif version:
+            version_label = f"v{version}"
+        elif version_name:
+            version_label = f"{version_name}"
+        else:
+            version_label = "vUNKNOWN"
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text=version_label)
+
+        about_col.separator(factor=2.0)
+
+        buttons_col = about_col.column(align=True)
+        buttons_col.operator(
+            "wm.url_open",
+            text="GitHub",
+            icon="EXPERIMENTAL",
+        ).url = "https://github.com/tomankirilov/dummy_bake_tools"
+        # buttons_col.operator(
+        #     "wm.url_open",
+        #     text="Documentation",
+        #     icon="HELP",
+        # ).url = "https://tomanov.art/"
+        buttons_col.operator(
+            "wm.url_open",
+            text="About",
+            icon="USER",
+        ).url = "https://tomanov.art/"
+
+        about_col.separator(factor=0.5)
+
+
+class DUMMYBAKE_PT_completed(bpy.types.Panel):
+    bl_label = ""
+    bl_idname = "DUMMYBAKE_PT_completed"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Little Bakery"
+
+    @classmethod
+    def poll(cls, context):
+        data = getattr(getattr(context, "scene", None), "bakery_data", None)
+        if not data:
+            return False
+        if data.is_baking:
+            return False
+        return bool(data.show_last_bake and data.last_bake_duration)
+
+    def draw(self, context):
+        layout = self.layout
+        data = context.scene.bakery_data
+
+        completed_box = layout.box()
+        title_row = completed_box.row()
+        title_row.alignment = "CENTER"
+        title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
+
+        textures = [item.value for item in data.last_bake_textures]
+        if textures:
+            list_box = layout.box()
+            list_header = list_box.row()
+
+            # list_header.label(text="Baked Textures", icon="IMAGE")
+            list_header.label(text="Baked Textures")
+            for name in textures:
+                row = list_box.split(factor=0.08, align=True)
+                row.label(text="")
+                row.column(align=True).label(text=f"- {name}")
+
+        buttons_col = layout.column(align=True)
+        buttons_col.scale_y = 1.6
+        buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+        buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+        _draw_about(layout, data, force_expand=True)
+
+
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
     bl_label = "Little Bakery"
     bl_idname = "DUMMYBAKE_PT_tools"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Little Bakery"
+
+    @classmethod
+    def poll(cls, context):
+        data = getattr(getattr(context, "scene", None), "bakery_data", None)
+        if not data:
+            return True
+        if data.is_baking:
+            return True
+        return not (data.show_last_bake and data.last_bake_duration)
 
     def draw(self, context):
         layout = self.layout
@@ -82,7 +197,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 _ensure_defaults(context.scene)
             except Exception:
                 pass
-        def _draw_about(section_layout, force_expand=False):
+        def _draw_about_inner(section_layout, force_expand=False):
             about_box = section_layout.box()
             header = about_box.row(align=True)
             header.prop(
@@ -158,21 +273,27 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
             
             progress_box.prop(data, "baking_progress", text="Progress", slider=True)
-            _draw_about(layout, force_expand=True)
+            _draw_about(layout, data, force_expand=True)
             return
 
-        _draw_about(layout)
+        _draw_about(layout, data)
 
         if data.show_last_bake and data.last_bake_duration:
-            last_box = layout.box()
-            row = last_box.row()
-            row.alignment = "CENTER"
-            row.operator(
-                "bakery.hide_last_bake",
-                text=f"Last Bake Completed in {data.last_bake_duration}",
-            )
+            completed_box = layout.box()
+            title_row = completed_box.row()
+            title_row.alignment = "CENTER"
+            title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
 
+            info_col = completed_box.column(align=True)
+            info_col.label(text=f"- Completed in {data.last_bake_duration}")
 
+            buttons_col = layout.column(align=True)
+            buttons_col.scale_y = 1.6
+            buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+            buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+            _draw_about(layout, force_expand=True)
+            return
 
         buttons_col = layout.column(align=True)
         buttons_col.scale_y = 2.0

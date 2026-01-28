@@ -6,7 +6,7 @@ from .lists import (
     DUMMYBAKE_UL_high_polys,
     BAKERY_UL_bake_targets,
 )
-from .panels import DUMMYBAKE_PT_tools
+from .panels import DUMMYBAKE_PT_tools, DUMMYBAKE_PT_completed
 
 
 classes = (
@@ -14,6 +14,7 @@ classes = (
     DUMMYBAKE_UL_low_polys,
     DUMMYBAKE_UL_high_polys,
     BAKERY_UL_bake_targets,
+    DUMMYBAKE_PT_completed,
     DUMMYBAKE_PT_tools,
 )
 

@@ -14,7 +14,7 @@ from .bake_ops import (
     DUMMYBAKE_OT_bake_all,
     DUMMYBAKE_OT_bake_selected_set,
 )
-from .io_ops import DUMMYBAKE_OT_pick_output_dir
+from .io_ops import DUMMYBAKE_OT_pick_output_dir, DUMMYBAKE_OT_open_output_dir
 from .target_ops import (
     Bakery_OT_bake_target_add_global,
     Bakery_OT_bake_target_remove_global,
@@ -40,6 +40,7 @@ classes = (
     DUMMYBAKE_OT_bake_all,
     DUMMYBAKE_OT_bake_selected_set,
     DUMMYBAKE_OT_pick_output_dir,
+    DUMMYBAKE_OT_open_output_dir,
     Bakery_OT_bake_target_add_global,
     Bakery_OT_bake_target_remove_global,
     Bakery_OT_bake_target_move_global_up,

@@ -36,3 +36,28 @@ class DUMMYBAKE_OT_pick_output_dir(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class DUMMYBAKE_OT_open_output_dir(bpy.types.Operator):
+    bl_idname = "bakery.open_output_dir"
+    bl_label = "Open Bake Folder"
+    bl_description = "Open the current bake output folder"
+
+    # open the output directory in the OS file browser.
+    def execute(self, context):
+        data = context.scene.bakery_data
+        target = _resolve_output_dir(data.output_dir)
+        if not target:
+            self.report({"WARNING"}, "Output directory is empty")
+            return {"CANCELLED"}
+        try:
+            os.makedirs(target, exist_ok=True)
+        except OSError:
+            self.report({"WARNING"}, "Failed to create output directory")
+            return {"CANCELLED"}
+        try:
+            bpy.ops.wm.path_open(filepath=target)
+        except RuntimeError:
+            self.report({"WARNING"}, "Failed to open output directory")
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+

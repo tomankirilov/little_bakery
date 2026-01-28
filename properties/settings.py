@@ -1,7 +1,7 @@
 import os
 import bpy
 
-from .items import BakeryBakeTargetItem, BakeryTextureSet
+from .items import BakeryBakeTargetItem, BakeryTextureSet, BakeryStringItem
 
 
 # normalize the output folder name to a safe relative form.
@@ -52,6 +52,7 @@ class BakeryData(bpy.types.PropertyGroup):
     baking_progress: bpy.props.FloatProperty(name="Baking Progress", default=0.0, min=0.0, max=1.0)
     last_bake_duration: bpy.props.StringProperty(name="Last Bake Duration", default="")
     show_last_bake: bpy.props.BoolProperty(name="Show Last Bake", default=True)
+    last_bake_textures: bpy.props.CollectionProperty(type=BakeryStringItem)
     render_device: bpy.props.EnumProperty(
         name="Render Device",
         items=[

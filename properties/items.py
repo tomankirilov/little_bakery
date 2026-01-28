@@ -195,3 +195,7 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     )
     bake_targets: bpy.props.CollectionProperty(type=BakeryBakeTargetItem)
     active_bake_target_index: bpy.props.IntProperty(default=-1)
+
+
+class BakeryStringItem(bpy.types.PropertyGroup):
+    value: bpy.props.StringProperty(name="Value", default="")
