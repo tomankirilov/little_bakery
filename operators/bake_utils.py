@@ -445,7 +445,7 @@ def _prepare_bake_target(item, material, cycles, bake):
         return False
     if target_name == "custom":
         cycles.samples = 1
-        cycles.bake_type = "EMIT"
+        cycles.bake_type = item.custom_bake_type
         return False
     cycles.bake_type = "EMIT"
     if target_name == "ambient_occlusion":
