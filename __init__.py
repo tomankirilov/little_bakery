@@ -1,9 +1,49 @@
+import re
+from pathlib import Path
+
 import bpy
+
+try:
+    import tomllib
+except Exception:
+    tomllib = None
+
+
+def _load_manifest_version():
+    manifest_path = Path(__file__).with_name("blender_manifest.toml")
+    try:
+        if tomllib:
+            with manifest_path.open("rb") as handle:
+                data = tomllib.load(handle)
+            version_str = data.get("version")
+        else:
+            version_str = None
+            for line in manifest_path.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("version"):
+                    match = re.search(r"\"([^\"]+)\"", line)
+                    if match:
+                        version_str = match.group(1)
+                        break
+        if not version_str:
+            return None, None
+        parts = [int(p) for p in re.findall(r"\d+", version_str)]
+        if not parts:
+            return version_str, None
+        return version_str, tuple(parts)
+    except Exception:
+        return None, None
+
+
+__version__, _version_tuple = _load_manifest_version()
+if _version_tuple is None:
+    _version_tuple = (0, 0, 0)
+    if __version__ is None:
+        __version__ = "0.0.0"
 
 bl_info = {
     "name": "Little Bakery",
     "author": "tomanov",
-    "version": (0, 8, 0),
+    "version": _version_tuple,
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Little Bakery",
     "description": "bake automation",
