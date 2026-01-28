@@ -279,7 +279,16 @@ def _set_selection(scene, view_layer, objects, active=None):
 
 # create a new image to bake into.
 def _make_image(name, width, height):
-    # create a new RGBA image with transparent background.
+    # Reuse existing images by name to avoid duplicates.
+    image = bpy.data.images.get(name)
+    if image:
+        if image.size[0] != width or image.size[1] != height:
+            try:
+                image.scale(width, height)
+            except RuntimeError:
+                pass
+        image.alpha_mode = "STRAIGHT"
+        return image
     image = bpy.data.images.new(name=name, width=width, height=height, alpha=True)
     image.generated_color = (0.0, 0.0, 0.0, 0.0)
     image.alpha_mode = "STRAIGHT"
@@ -610,8 +619,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     _tag_redraw(context)
     created_materials = []
     created_node_groups = []
-    created_images = []
     start_time = time.perf_counter()
+    cleared_images = set()
     _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
 
     # Pre-calculate total target count for a simple progress bar.
@@ -676,8 +685,9 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
                 texture_name = _target_texture_name(tex_set, item)
                 image = _make_image(texture_name, bake_resolution[0], bake_resolution[1])
-                created_images.append(image)
-                _clear_image(image)
+                if image.name not in cleared_images:
+                    _clear_image(image)
+                    cleared_images.add(image.name)
                 bake.use_clear = False
 
                 needs_material_settings = _prepare_bake_target(
@@ -851,11 +861,6 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     scene=scene,
                     context=context,
                 )
-                try:
-                    if image.users == 0:
-                        bpy.data.images.remove(image, do_unlink=True)
-                except Exception:
-                    pass
 
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
@@ -878,12 +883,6 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             try:
                 bpy.data.node_groups.remove(group, do_unlink=True)
             except RuntimeError:
-                pass
-        for image in created_images:
-            try:
-                if image and image.users == 0:
-                    bpy.data.images.remove(image, do_unlink=True)
-            except Exception:
                 pass
         temp_collection = bpy.data.collections.get(_TEMP_COLLECTION_NAME)
         if temp_collection:
