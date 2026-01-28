@@ -1,6 +1,69 @@
+from pathlib import Path
+
 import bpy
 
 from .draw_helpers import _indent_column, _draw_resolution_row, _draw_bake_target_settings
+
+
+def _addon_version():
+    try:
+        import importlib
+        import sys
+
+        addon_key = __package__.split(".")[0] if __package__ else None
+        addon_mod = sys.modules.get(addon_key) if addon_key else None
+        if addon_mod is None and addon_key:
+            addon_mod = sys.modules.get(f"{addon_key}.__init__")
+        if addon_mod is None and addon_key:
+            addon_mod = importlib.import_module(addon_key)
+        if addon_mod is None:
+            return None
+        version_str = getattr(addon_mod, "__version__", None)
+        if version_str:
+            return version_str
+        info = getattr(addon_mod, "bl_info", None) or {}
+        version_tuple = info.get("version")
+        if version_tuple:
+            return ".".join(str(x) for x in version_tuple)
+    except Exception:
+        return None
+    return None
+
+
+def _manifest_version():
+    try:
+        here = Path(__file__).resolve()
+        for parent in [here.parent, *here.parents]:
+            manifest_path = parent / "blender_manifest.toml"
+            if not manifest_path.is_file():
+                continue
+            for line in manifest_path.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("version"):
+                    parts = line.split('"')
+                    if len(parts) >= 2:
+                        return parts[1]
+            break
+    except Exception:
+        return None
+    return None
+
+
+def _version_name():
+    try:
+        here = Path(__file__).resolve()
+        for parent in [here.parent, *here.parents]:
+            metadata_path = parent / "metadata.toml"
+            if not metadata_path.is_file():
+                continue
+            for line in metadata_path.read_text(encoding="utf-8").splitlines():
+                if line.strip().startswith("version_name"):
+                    parts = line.split('"')
+                    if len(parts) >= 2:
+                        return parts[1]
+            break
+    except Exception:
+        return None
+    return None
 
 
 class DUMMYBAKE_PT_tools(bpy.types.Panel):
@@ -41,6 +104,22 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 label_row = about_col.row()
                 label_row.alignment = "CENTER"
                 label_row.label(text="♥️ for everybody ♥️")
+
+                about_col.separator(factor=1.0)
+
+                version = _addon_version() or _manifest_version()
+                version_name = _version_name()
+                if version and version_name:
+                    version_label = f"({version} - {version_name})"
+                elif version:
+                    version_label = f"v{version}"
+                elif version_name:
+                    version_label = f"{version_name}"
+                else:
+                    version_label = "vUNKNOWN"
+                label_row = about_col.row()
+                label_row.alignment = "CENTER"
+                label_row.label(text=version_label)
 
                 about_col.separator(factor=2.0)
 
