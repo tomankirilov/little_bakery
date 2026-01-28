@@ -475,6 +475,7 @@ def _effective_settings(data, tex_set):
     return {
         "resolution": resolution,
         "dilation": dilation,
+        "dilation_method": data.global_dilation_method,
         "msaa": msaa,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
@@ -832,7 +833,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 # Hard padding pass (old behavior) before downscaling.
                 dilation = settings["dilation"] * scale_factor
                 if dilation > 0:
-                    _dilate_image(image, dilation)
+                    _dilate_image(image, dilation, settings["dilation_method"])
                     _debug_log(context, f"Applied dilation of {dilation}px")
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
