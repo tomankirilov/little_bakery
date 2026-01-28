@@ -40,6 +40,9 @@ class BakeryData(bpy.types.PropertyGroup):
     show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=False)
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
+    show_render_image: bpy.props.BoolProperty(name="Show Image", default=False)
+    show_render_padding: bpy.props.BoolProperty(name="Show Padding", default=False)
+    show_render_cage: bpy.props.BoolProperty(name="Show Cage", default=False)
     show_bake_targets: bpy.props.BoolProperty(name="Show Bake Targets", default=False)
     show_output: bpy.props.BoolProperty(name="Show Output", default=False)
     show_about: bpy.props.BoolProperty(name="Show About", default=False)
@@ -120,3 +123,12 @@ class BakeryData(bpy.types.PropertyGroup):
         min=0.0,
     )
     global_dilation: bpy.props.IntProperty(name="Padding (px)", default=4, min=0)
+    global_dilation_method: bpy.props.EnumProperty(
+        name="Padding Method",
+        items=[
+            ("FAST", "Fast", "Original fast padding"),
+            ("CHAMFER", "Chamfer", "Chamfer distance spread"),
+            ("EDT", "EDT", "True euclidean distance"),
+        ],
+        default="FAST",
+    )

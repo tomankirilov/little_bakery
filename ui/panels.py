@@ -126,16 +126,66 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             header.label(text="Rendering")
             if data.show_render_settings:
                 render_col = _indent_column(sections)
-                row = render_col.split(factor=0.4, align=True)
+                device_col = _indent_column(render_col)
+                row = device_col.split(factor=0.4, align=True)
                 row.label(text="Render Device")
                 row.prop(data, "render_device", text="")
-                row = render_col.split(factor=0.4, align=True)
+
+            sections.separator(factor=0.4)
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_render_image",
+                icon="TRIA_DOWN" if data.show_render_image else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Image")
+            if data.show_render_image:
+                image_col = _indent_column(sections)
+                _draw_resolution_row(image_col, data, "global_resolution")
+                image_col.separator(factor=0.3)
+                row = image_col.split(factor=0.4, align=True)
                 row.label(text="MSAA")
                 row.prop(data, "global_msaa", text="")
-                _draw_resolution_row(render_col, data, "global_resolution")
-                render_col.prop(data, "global_dilation")
-                render_col.prop(data, "global_extrusion")
-                render_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+
+            sections.separator(factor=0.4)
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_render_padding",
+                icon="TRIA_DOWN" if data.show_render_padding else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Padding")
+            if data.show_render_padding:
+                pad_col = _indent_column(sections)
+                pad_col.separator(factor=0.2)
+                row = pad_col.split(factor=0.4, align=True)
+                row.label(text="Method")
+                row.prop(data, "global_dilation_method", text="")
+                pad_col.prop(data, "global_dilation")
+
+            sections.separator(factor=0.4)
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
+                "show_render_cage",
+                icon="TRIA_DOWN" if data.show_render_cage else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Cage")
+            if data.show_render_cage:
+                cage_col = _indent_column(sections)
+                cage_col.prop(data, "global_extrusion")
+                cage_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
+
+            sections.separator(factor=0.4)
 
             header = sections.row(align=True)
             header.prop(
@@ -149,7 +199,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             if data.show_output:
                 output_col = _indent_column(sections)
                 row = output_col.split(factor=0.4, align=True)
-                row.label(text="Output")
+                row.label(text="Directory")
                 output_row = row.row(align=True)
                 output_row.prop(data, "output_dir", text="")
                 output_row.operator("bakery.pick_output_dir", text="", icon="FILE_FOLDER")
