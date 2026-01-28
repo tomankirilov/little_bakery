@@ -91,6 +91,24 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
 
     color_attribute_name: bpy.props.StringProperty(name="Color Attribute", default="Color")
     custom_material: bpy.props.PointerProperty(name="Material", type=bpy.types.Material)
+    custom_bake_type: bpy.props.EnumProperty(
+        name="Bake Type",
+        items=[
+            ("COMBINED", "Combined", ""),
+            ("AO", "Ambient Occlusion", ""),
+            ("SHADOW", "Shadow", ""),
+            ("POSITION", "Position", ""),
+            ("NORMAL", "Normal", ""),
+            ("UV", "UV", ""),
+            ("ROUGHNESS", "Roughness", ""),
+            ("EMIT", "Emission", ""),
+            ("ENVIRONMENT", "Environment", ""),
+            ("DIFFUSE", "Diffuse", ""),
+            ("GLOSSY", "Glossy", ""),
+            ("TRANSMISSION", "Transmission", ""),
+        ],
+        default="EMIT",
+    )
 
     normal_space: bpy.props.EnumProperty(
         name="Space",

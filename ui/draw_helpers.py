@@ -56,3 +56,4 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "color_attribute_name")
     elif item.target_type == "custom":
         layout.prop(item, "custom_material")
+        layout.prop(item, "custom_bake_type")
