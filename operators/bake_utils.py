@@ -110,8 +110,7 @@ def _load_highpoly_material():
         return material
     base_dir = os.path.dirname(os.path.dirname(__file__))
     candidates = [
-        os.path.join(os.path.dirname(__file__), "bakery_data.blend"),
-        os.path.join(base_dir, "bakery_data.blend"),
+        os.path.join(base_dir, "data", "bakery_data.blend"),
     ]
     for path in candidates:
         blend_path = os.path.normpath(path)
