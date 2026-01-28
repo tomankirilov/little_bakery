@@ -127,7 +127,8 @@ class BakeryData(bpy.types.PropertyGroup):
         name="Padding Method",
         items=[
             ("FAST", "Fast", "Original fast padding"),
-            ("RADIAL", "Radial", "Smoother radial spread"),
+            ("CHAMFER", "Chamfer", "Chamfer distance spread"),
+            ("EDT", "EDT", "True euclidean distance"),
         ],
         default="FAST",
     )

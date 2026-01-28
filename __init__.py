@@ -3,7 +3,7 @@ import bpy
 bl_info = {
     "name": "Little Bakery",
     "author": "tomanov",
-    "version": (1, 0, 0),
+    "version": (0, 8, 0),
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Little Bakery",
     "description": "bake automation",
