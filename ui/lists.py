@@ -1,7 +1,7 @@
 import bpy
 
 
-class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
+class BAKERY_UL_texture_sets(bpy.types.UIList):
     # draw each texture set row.
     # keep list rows compact: icon + name.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
@@ -11,8 +11,8 @@ class DUMMYBAKE_UL_texture_sets(bpy.types.UIList):
         row.prop(item, "name", text="", emboss=False)
 
 
-class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
-    # draw each low poly row.
+class BAKERY_UL_low_polys(bpy.types.UIList):
+    # draw each target row.
     # expose a quick select button and an object search per row.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
@@ -23,9 +23,9 @@ class DUMMYBAKE_UL_low_polys(bpy.types.UIList):
         row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
 
 
-class DUMMYBAKE_UL_high_polys(bpy.types.UIList):
-    # draw each high poly row.
-    # High polys mirror the low poly list layout for consistency.
+class BAKERY_UL_high_polys(bpy.types.UIList):
+    # draw each source row.
+    # Sources mirror the targets list layout for consistency.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)

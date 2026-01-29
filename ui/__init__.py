@@ -1,20 +1,21 @@
 import bpy
 
 from .lists import (
-    DUMMYBAKE_UL_texture_sets,
-    DUMMYBAKE_UL_low_polys,
-    DUMMYBAKE_UL_high_polys,
+    BAKERY_UL_texture_sets,
+    BAKERY_UL_low_polys,
+    BAKERY_UL_high_polys,
     BAKERY_UL_bake_targets,
 )
-from .panels import DUMMYBAKE_PT_tools
+from .panels import BAKERY_PT_tools, BAKERY_PT_completed
 
 
 classes = (
-    DUMMYBAKE_UL_texture_sets,
-    DUMMYBAKE_UL_low_polys,
-    DUMMYBAKE_UL_high_polys,
+    BAKERY_UL_texture_sets,
+    BAKERY_UL_low_polys,
+    BAKERY_UL_high_polys,
     BAKERY_UL_bake_targets,
-    DUMMYBAKE_PT_tools,
+    BAKERY_PT_completed,
+    BAKERY_PT_tools,
 )
 
 

@@ -3,7 +3,7 @@ import bpy
 from .bake_utils import _GEOMETRY_SKIP_TYPES
 
 
-class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
+class BAKERY_OT_texture_set_add(bpy.types.Operator):
     bl_idname = "bakery.texture_set_add"
     bl_label = "Add Texture Set"
     bl_description = "Add a new texture set"
@@ -18,7 +18,7 @@ class DUMMYBAKE_OT_texture_set_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
+class BAKERY_OT_texture_set_remove(bpy.types.Operator):
     bl_idname = "bakery.texture_set_remove"
     bl_label = "Remove Texture Set"
     bl_description = "Remove the selected texture set"
@@ -37,14 +37,42 @@ class DUMMYBAKE_OT_texture_set_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_add"
-    bl_label = "Add Low Poly"
-    bl_description = "Add a low poly entry to the selected texture set"
+class BAKERY_OT_texture_set_move_up(bpy.types.Operator):
+    bl_idname = "bakery.texture_set_move_up"
+    bl_label = "Move Texture Set Up"
+    bl_description = "Move the selected texture set up"
 
-    # add selected objects to the low poly list.
     def execute(self, context):
-        # add selected objects as low polys.
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if index > 0:
+            data.texture_sets.move(index, index - 1)
+            data.active_texture_index = index - 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_texture_set_move_down(bpy.types.Operator):
+    bl_idname = "bakery.texture_set_move_down"
+    bl_label = "Move Texture Set Down"
+    bl_description = "Move the selected texture set down"
+
+    def execute(self, context):
+        data = context.scene.bakery_data
+        index = data.active_texture_index
+        if 0 <= index < len(data.texture_sets) - 1:
+            data.texture_sets.move(index, index + 1)
+            data.active_texture_index = index + 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_low_poly_add(bpy.types.Operator):
+    bl_idname = "bakery.low_poly_add"
+    bl_label = "Add Target"
+    bl_description = "Add a target entry to the selected texture set"
+
+    # add selected objects to the target list.
+    def execute(self, context):
+        # add selected objects as targets.
         data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -67,14 +95,14 @@ class DUMMYBAKE_OT_low_poly_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
+class BAKERY_OT_low_poly_remove(bpy.types.Operator):
     bl_idname = "bakery.low_poly_remove"
-    bl_label = "Remove Low Poly"
-    bl_description = "Remove the selected low poly entry"
+    bl_label = "Remove Target"
+    bl_description = "Remove the selected target entry"
 
-    # remove the active low poly entry.
+    # remove the active target entry.
     def execute(self, context):
-        # remove the active low poly entry.
+        # remove the active target entry.
         data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -89,14 +117,48 @@ class DUMMYBAKE_OT_low_poly_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_add"
-    bl_label = "Add High Poly"
-    bl_description = "Add a high poly entry to the selected low poly"
+class BAKERY_OT_low_poly_move_up(bpy.types.Operator):
+    bl_idname = "bakery.low_poly_move_up"
+    bl_label = "Move Target Up"
+    bl_description = "Move the selected target up"
 
-    # add selected objects to the high poly list.
     def execute(self, context):
-        # add selected objects as high polys.
+        data = context.scene.bakery_data
+        if not data.texture_sets or data.active_texture_index < 0:
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[data.active_texture_index]
+        index = tex_set.active_low_index
+        if index > 0:
+            tex_set.low_polys.move(index, index - 1)
+            tex_set.active_low_index = index - 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_low_poly_move_down(bpy.types.Operator):
+    bl_idname = "bakery.low_poly_move_down"
+    bl_label = "Move Target Down"
+    bl_description = "Move the selected target down"
+
+    def execute(self, context):
+        data = context.scene.bakery_data
+        if not data.texture_sets or data.active_texture_index < 0:
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[data.active_texture_index]
+        index = tex_set.active_low_index
+        if 0 <= index < len(tex_set.low_polys) - 1:
+            tex_set.low_polys.move(index, index + 1)
+            tex_set.active_low_index = index + 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_high_poly_add(bpy.types.Operator):
+    bl_idname = "bakery.high_poly_add"
+    bl_label = "Add Source"
+    bl_description = "Add a source entry to the selected target"
+
+    # add selected objects to the source list.
+    def execute(self, context):
+        # add selected objects as sources.
         data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -122,14 +184,14 @@ class DUMMYBAKE_OT_high_poly_add(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
+class BAKERY_OT_high_poly_remove(bpy.types.Operator):
     bl_idname = "bakery.high_poly_remove"
-    bl_label = "Remove High Poly"
-    bl_description = "Remove the selected high poly entry"
+    bl_label = "Remove Source"
+    bl_description = "Remove the selected source entry"
 
-    # remove the active high poly entry.
+    # remove the active source entry.
     def execute(self, context):
-        # remove the active high poly entry.
+        # remove the active source entry.
         data = context.scene.bakery_data
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
@@ -147,7 +209,47 @@ class DUMMYBAKE_OT_high_poly_remove(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_select_object(bpy.types.Operator):
+class BAKERY_OT_high_poly_move_up(bpy.types.Operator):
+    bl_idname = "bakery.high_poly_move_up"
+    bl_label = "Move Source Up"
+    bl_description = "Move the selected source up"
+
+    def execute(self, context):
+        data = context.scene.bakery_data
+        if not data.texture_sets or data.active_texture_index < 0:
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[data.active_texture_index]
+        if not tex_set.low_polys or tex_set.active_low_index < 0:
+            return {"CANCELLED"}
+        low_item = tex_set.low_polys[tex_set.active_low_index]
+        index = low_item.active_high_index
+        if index > 0:
+            low_item.high_polys.move(index, index - 1)
+            low_item.active_high_index = index - 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_high_poly_move_down(bpy.types.Operator):
+    bl_idname = "bakery.high_poly_move_down"
+    bl_label = "Move Source Down"
+    bl_description = "Move the selected source down"
+
+    def execute(self, context):
+        data = context.scene.bakery_data
+        if not data.texture_sets or data.active_texture_index < 0:
+            return {"CANCELLED"}
+        tex_set = data.texture_sets[data.active_texture_index]
+        if not tex_set.low_polys or tex_set.active_low_index < 0:
+            return {"CANCELLED"}
+        low_item = tex_set.low_polys[tex_set.active_low_index]
+        index = low_item.active_high_index
+        if 0 <= index < len(low_item.high_polys) - 1:
+            low_item.high_polys.move(index, index + 1)
+            low_item.active_high_index = index + 1
+        return {"FINISHED"}
+
+
+class BAKERY_OT_select_object(bpy.types.Operator):
     bl_idname = "bakery.select_object"
     bl_label = "Select Object"
     bl_description = "Select the object from this list item"
@@ -155,8 +257,8 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
     object_name: bpy.props.StringProperty()
     list_kind: bpy.props.EnumProperty(
         items=[
-            ("LOW", "Low Poly", ""),
-            ("HIGH", "High Poly", ""),
+            ("LOW", "Target", ""),
+            ("HIGH", "Source", ""),
         ]
     )
     item_index: bpy.props.IntProperty()
@@ -195,7 +297,7 @@ class DUMMYBAKE_OT_select_object(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
+class BAKERY_OT_clear_selection(bpy.types.Operator):
     bl_idname = "bakery.clear_selection"
     bl_label = "Clear Selection"
     bl_description = "Clear the active list selection"
@@ -203,8 +305,8 @@ class DUMMYBAKE_OT_clear_selection(bpy.types.Operator):
     list_kind: bpy.props.EnumProperty(
         items=[
             ("TEXTURE", "Texture Sets", ""),
-            ("LOW", "Low Poly", ""),
-            ("HIGH", "High Poly", ""),
+            ("LOW", "Target", ""),
+            ("HIGH", "Source", ""),
         ]
     )
 

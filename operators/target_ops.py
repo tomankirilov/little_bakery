@@ -190,7 +190,7 @@ class Bakery_OT_bake_target_move_set_down(bpy.types.Operator):
 
 
 # hide the last-bake banner when the user dismisses it.
-class DUMMYBAKE_OT_hide_last_bake(bpy.types.Operator):
+class BAKERY_OT_hide_last_bake(bpy.types.Operator):
     bl_idname = "bakery.hide_last_bake"
     bl_label = "Hide Last Bake"
     bl_description = "Hide the last bake message"

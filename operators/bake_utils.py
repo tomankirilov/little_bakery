@@ -38,7 +38,7 @@ def _get_addon_prefs(context):
     if not prefs:
         return None
     root_package = __package__.split(".")[0] if __package__ else ""
-    candidates = [root_package, "dummy_bake_tools", "bakery"]
+    candidates = [root_package, "bakery"]
     for key in candidates:
         if not key:
             continue
@@ -102,7 +102,7 @@ def _popup_error(context, message):
     if wm:
         wm.popup_menu(draw, title="Bakery")
 
-# Load the high poly material from the blend file.
+# Load the source material from the blend file.
 def _load_highpoly_material():
     # Load once and reuse for all bakes.
     material = bpy.data.materials.get(_HIGH_MATERIAL_NAME)
@@ -110,8 +110,7 @@ def _load_highpoly_material():
         return material
     base_dir = os.path.dirname(os.path.dirname(__file__))
     candidates = [
-        os.path.join(os.path.dirname(__file__), "bakery_data.blend"),
-        os.path.join(base_dir, "bakery_data.blend"),
+        os.path.join(base_dir, "data", "bakery_data.blend"),
     ]
     for path in candidates:
         blend_path = os.path.normpath(path)
@@ -123,7 +122,7 @@ def _load_highpoly_material():
                 break
     return bpy.data.materials.get(_HIGH_MATERIAL_NAME)
 
-# Set the high poly material to the needed bake mode.
+# Set the source material to the needed bake mode.
 def _set_highpoly_material_mode(material, mode):
     # Switch the material's bake mode by writing into the node input.
     if not material or not material.node_tree:
@@ -218,7 +217,7 @@ def _ensure_material_slot(obj, material):
 
 # create a basic low-poly material if the object has none.
 def _ensure_low_material(obj):
-    # make sure the low poly has a nodes-enabled material to host the bake.
+# make sure the target has a nodes-enabled material to host the bake.
     data = getattr(obj, "data", None)
     if not data or not hasattr(data, "materials"):
         return None
@@ -400,9 +399,9 @@ def _msaa_factor(value):
     except (TypeError, ValueError):
         return 1
 
-# clone materials so each high poly can use its own color attribute name.
+# clone materials so each source can use its own color attribute name.
 def _copy_color_attribute_material(base_material, attribute_name, cache, created_materials, created_node_groups):
-    # Create a per-attribute material + node-group copy so each high poly can
+    # Create a per-attribute material + node-group copy so each source can
     # point to a different color attribute without stomping shared state.
     key = attribute_name or ""
     if key in cache:
@@ -576,13 +575,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     data = context.scene.bakery_data
     material = _load_highpoly_material()
     if not material:
-        _popup_error(context, "Missing high poly material")
-        operator.report({"WARNING"}, "Missing high poly material")
+        _popup_error(context, "Missing source material")
+        operator.report({"WARNING"}, "Missing source material")
         return False
 
     if not any(ts.low_polys for ts in texture_sets):
-        _popup_error(context, "Please add at least one low poly object")
-        operator.report({"WARNING"}, "Please add at least one low poly object")
+        _popup_error(context, "Please add at least one target object")
+        operator.report({"WARNING"}, "Please add at least one target object")
         return False
 
     if not any(_collect_bake_targets(data, ts) for ts in texture_sets):
@@ -619,6 +618,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     _tag_redraw(context)
     created_materials = []
     created_node_groups = []
+    baked_texture_names = set()
     start_time = time.perf_counter()
     cleared_images = set()
     _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
@@ -639,7 +639,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             settings = _effective_settings(data, tex_set)
             _debug_log(context, f"Preparing texture set '{tex_set.name}'")
             if not tex_set.low_polys:
-                _debug_log(context, f"Skipping texture set '{tex_set.name}' (no low polys)")
+                _debug_log(context, f"Skipping texture set '{tex_set.name}' (no targets)")
                 continue
             data.baking_set_name = tex_set.name
 
@@ -689,6 +689,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     _clear_image(image)
                     cleared_images.add(image.name)
                 bake.use_clear = False
+                baked_texture_names.add(texture_name)
 
                 needs_material_settings = _prepare_bake_target(
                     item,
@@ -736,13 +737,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     ]
                     high_objs = [item.object for item in high_items]
                     if not high_objs:
-                        # If there is no high poly, bake the low poly with the target material.
+                        # If there is no source, bake the target with the target material.
                         if use_bakery_material:
                             _ensure_material_slot(low_obj, material)
                         elif target_name == "custom":
                             _ensure_material_slot(low_obj, item.custom_material)
                     if target_name == "color_attribute":
-                        # Override the high poly material per-object to inject the attribute name.
+                        # Override the source material per-object to inject the attribute name.
                         for item in high_items:
                             attr_name = (item.color_attribute or "").strip()
                             if not attr_name:
@@ -757,8 +758,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                             _ensure_material_slot(item.object, mat)
                     _debug_log(
                         context,
-                        f"Baking {target_label} for low poly '{low_obj.name}' "
-                        f"with {len(high_objs)} high poly object(s)",
+                        f"Baking {target_label} for target '{low_obj.name}' "
+                        f"with {len(high_objs)} source object(s)",
                     )
                     restore_hide_render = None
                     if target_name == "ambient_occlusion":
@@ -911,6 +912,10 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     minutes, seconds = divmod(int(elapsed), 60)
     data.last_bake_duration = f"{minutes}m {seconds}s"
     data.show_last_bake = True
+    data.last_bake_textures.clear()
+    for name in sorted(baked_texture_names):
+        entry = data.last_bake_textures.add()
+        entry.value = name
     message = f"{label} finished in {elapsed:.2f}s"
     print(f"Bakery: {message}")
     operator.report({"INFO"}, message)

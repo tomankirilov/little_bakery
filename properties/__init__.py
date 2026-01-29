@@ -5,6 +5,7 @@ from .items import (
     BakeryLowPolyItem,
     BakeryBakeTargetItem,
     BakeryTextureSet,
+    BakeryStringItem,
 )
 from .settings import BakeryData
 from .defaults import _ensure_defaults_all, _deferred_defaults, _on_load
@@ -15,6 +16,7 @@ classes = (
     BakeryLowPolyItem,
     BakeryBakeTargetItem,
     BakeryTextureSet,
+    BakeryStringItem,
     BakeryData,
 )
 

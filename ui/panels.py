@@ -66,12 +66,129 @@ def _version_name():
     return None
 
 
-class DUMMYBAKE_PT_tools(bpy.types.Panel):
-    bl_label = "Little Bakery"
-    bl_idname = "DUMMYBAKE_PT_tools"
+def _draw_about(section_layout, data, force_expand=False):
+    about_box = section_layout.box()
+    header = about_box.row(align=True)
+    header.prop(
+        data,
+        "show_about",
+        icon="TRIA_DOWN" if (data.show_about or force_expand) else "TRIA_RIGHT",
+        icon_only=True,
+        emboss=False,
+    )
+    header.label(text="Little Bakery", icon="QUESTION")
+    #header.label(text="About", icon="USER")
+    if data.show_about or force_expand:
+        about_col = about_box.column(align=True)
+
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text="BAKED WITH LOVE")
+
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text="♥️ for everybody ♥️")
+
+        about_col.separator(factor=1.0)
+
+        version = _addon_version() or _manifest_version()
+        version_name = _version_name()
+        if version and version_name:
+            version_label = f"({version} - {version_name})"
+        elif version:
+            version_label = f"v{version}"
+        elif version_name:
+            version_label = f"{version_name}"
+        else:
+            version_label = "vUNKNOWN"
+        label_row = about_col.row()
+        label_row.alignment = "CENTER"
+        label_row.label(text=version_label)
+
+        about_col.separator(factor=2.0)
+
+        buttons_col = about_col.column(align=True)
+        buttons_col.operator(
+            "wm.url_open",
+            text="GitHub",
+            icon="EXPERIMENTAL",
+        ).url = "https://github.com/tomankirilov/little_bakery"
+        
+        buttons_col.operator(
+            "wm.url_open",
+            text="Documentation",
+            icon="HELP",
+        ).url = "https://tomankirilov.github.io/little_bakery_docs/"
+
+        buttons_col.operator(
+            "wm.url_open",
+            text="About",
+            icon="USER",
+        ).url = "https://tomanov.art/"
+
+        about_col.separator(factor=0.5)
+
+
+class BAKERY_PT_completed(bpy.types.Panel):
+    bl_label = ""
+    bl_idname = "BAKERY_PT_completed"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Little Bakery"
+
+    @classmethod
+    def poll(cls, context):
+        data = getattr(getattr(context, "scene", None), "bakery_data", None)
+        if not data:
+            return False
+        if data.is_baking:
+            return False
+        return bool(data.show_last_bake and data.last_bake_duration)
+
+    def draw(self, context):
+        layout = self.layout
+        data = context.scene.bakery_data
+
+        completed_box = layout.box()
+        title_row = completed_box.row()
+        title_row.alignment = "CENTER"
+        title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
+
+        textures = [item.value for item in data.last_bake_textures]
+        if textures:
+            list_box = layout.box()
+            list_header = list_box.row()
+
+            # list_header.label(text="Baked Textures", icon="IMAGE")
+            list_header.label(text="Baked Textures")
+            for name in textures:
+                row = list_box.split(factor=0.08, align=True)
+                row.label(text="")
+                row.column(align=True).label(text=f"- {name}")
+
+        buttons_col = layout.column(align=True)
+        buttons_col.scale_y = 1.6
+        buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+        buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+        _draw_about(layout, data, force_expand=True)
+
+
+class BAKERY_PT_tools(bpy.types.Panel):
+    bl_label = "Little Bakery"
+    bl_idname = "BAKERY_PT_tools"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Little Bakery"
+
+    @classmethod
+    def poll(cls, context):
+        data = getattr(getattr(context, "scene", None), "bakery_data", None)
+        if not data:
+            return True
+        if data.is_baking:
+            return True
+        return not (data.show_last_bake and data.last_bake_duration)
 
     def draw(self, context):
         layout = self.layout
@@ -82,7 +199,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 _ensure_defaults(context.scene)
             except Exception:
                 pass
-        def _draw_about(section_layout, force_expand=False):
+        def _draw_about_inner(section_layout, force_expand=False):
             about_box = section_layout.box()
             header = about_box.row(align=True)
             header.prop(
@@ -128,12 +245,12 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     "wm.url_open",
                     text="GitHub",
                     icon="EXPERIMENTAL",
-                ).url = "https://github.com/tomankirilov/dummy_bake_tools"
+                ).url = "https://github.com/tomankirilov/little_bakery"
                 # buttons_col.operator(
                 #     "wm.url_open",
                 #     text="Documentation",
                 #     icon="HELP",
-                # ).url = "https://tomanov.art/"
+                # ).url = "https://tomankirilov.github.io/little_bakery_docs/"
                 buttons_col.operator(
                     "wm.url_open",
                     text="About",
@@ -158,21 +275,27 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
 
             
             progress_box.prop(data, "baking_progress", text="Progress", slider=True)
-            _draw_about(layout, force_expand=True)
+            _draw_about(layout, data, force_expand=True)
             return
 
-        _draw_about(layout)
+        _draw_about(layout, data)
 
         if data.show_last_bake and data.last_bake_duration:
-            last_box = layout.box()
-            row = last_box.row()
-            row.alignment = "CENTER"
-            row.operator(
-                "bakery.hide_last_bake",
-                text=f"Last Bake Completed in {data.last_bake_duration}",
-            )
+            completed_box = layout.box()
+            title_row = completed_box.row()
+            title_row.alignment = "CENTER"
+            title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
 
+            info_col = completed_box.column(align=True)
+            info_col.label(text=f"- Completed in {data.last_bake_duration}")
 
+            buttons_col = layout.column(align=True)
+            buttons_col.scale_y = 1.6
+            buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+            buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+            _draw_about(layout, force_expand=True)
+            return
 
         buttons_col = layout.column(align=True)
         buttons_col.scale_y = 2.0
@@ -205,43 +328,24 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             header.label(text="Rendering")
             if data.show_render_settings:
                 render_col = _indent_column(sections)
-                device_col = _indent_column(render_col)
-                row = device_col.split(factor=0.4, align=True)
+                row = render_col.split(factor=0.4, align=True)
                 row.label(text="Render Device")
                 row.prop(data, "render_device", text="")
 
-            sections.separator(factor=0.4)
+                render_col.separator(factor=0.3)
 
-            header = sections.row(align=True)
-            header.prop(
-                data,
-                "show_render_image",
-                icon="TRIA_DOWN" if data.show_render_image else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Image")
-            if data.show_render_image:
-                image_col = _indent_column(sections)
-                _draw_resolution_row(image_col, data, "global_resolution")
-                image_col.separator(factor=0.3)
-                row = image_col.split(factor=0.4, align=True)
-                row.label(text="MSAA")
+                _draw_resolution_row(render_col, data, "global_resolution")
+                render_col.separator(factor=0.3)
+
+                row = render_col.split(factor=0.4, align=True)
+                row.label(text="Anti-Aliasing")
                 row.prop(data, "global_msaa", text="")
 
-            sections.separator(factor=0.4)
+                render_col.separator(factor=0.4)
 
-            header = sections.row(align=True)
-            header.prop(
-                data,
-                "show_render_padding",
-                icon="TRIA_DOWN" if data.show_render_padding else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Padding")
-            if data.show_render_padding:
-                pad_col = _indent_column(sections)
+                pad_label = render_col.row(align=True)
+                pad_label.label(text="Padding")
+                pad_col = _indent_column(render_col)
                 pad_col.separator(factor=0.2)
                 row = pad_col.split(factor=0.4, align=True)
                 row.label(text="Method")
@@ -253,12 +357,58 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             header = sections.row(align=True)
             header.prop(
                 data,
+                "show_bake_targets",
+                icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
+                icon_only=True,
+                emboss=False,
+            )
+            header.label(text="Bake Targets")
+            if data.show_bake_targets:
+                bake_col = sections.column(align=True)
+                row = bake_col.row()
+                row.template_list(
+                    "BAKERY_UL_bake_targets",
+                    "",
+                    data,
+                    "global_bake_targets",
+                    data,
+                    "active_global_bake_target_index",
+                    rows=4,
+                )
+                col = row.column(align=True)
+                col.operator("bakery.bake_target_add_global", icon="ADD", text="")
+                col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
+                col.separator()
+                col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
+                col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
+
+                if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
+                    item = data.global_bake_targets[data.active_global_bake_target_index]
+                    settings_col = bake_col.column(align=True)
+                    settings_col.separator()
+                    header = settings_col.row(align=True)
+                    header.prop(
+                        item,
+                        "show_settings",
+                        icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
+                        icon_only=True,
+                        emboss=False,
+                    )
+                    header.label(text="Target Settings")
+                    if item.show_settings:
+                        _draw_bake_target_settings(settings_col, item)
+
+            sections.separator(factor=0.4)
+
+            header = sections.row(align=True)
+            header.prop(
+                data,
                 "show_render_cage",
                 icon="TRIA_DOWN" if data.show_render_cage else "TRIA_RIGHT",
                 icon_only=True,
                 emboss=False,
             )
-            header.label(text="Cage")
+            header.label(text="Projection")
             if data.show_render_cage:
                 cage_col = _indent_column(sections)
                 cage_col.prop(data, "global_extrusion")
@@ -295,53 +445,6 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     row = output_col.split(factor=0.4, align=True)
                     row.label(text="Compression")
                     row.prop(data, "output_png_compression", text="")
-
-        bake_box = layout.box()
-        header = bake_box.row(align=True)
-        header.scale_y = 1.4
-        header.prop(
-            data,
-            "show_bake_targets",
-            icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
-            icon_only=True,
-            emboss=False,
-        )
-        header.label(text="Bake Targets", icon="IMAGE")
-        if data.show_bake_targets:
-            bake_col = bake_box.column(align=True)
-            row = bake_col.row()
-            row.template_list(
-                "BAKERY_UL_bake_targets",
-                "",
-                data,
-                "global_bake_targets",
-                data,
-                "active_global_bake_target_index",
-                rows=4,
-            )
-            col = row.column(align=True)
-            col.operator("bakery.bake_target_add_global", icon="ADD", text="")
-            col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
-            col.separator()
-            col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
-            col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
-
-            if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
-                item = data.global_bake_targets[data.active_global_bake_target_index]
-                settings_col = bake_col.column(align=True)
-                settings_col.separator()
-                header = settings_col.row(align=True)
-                header.prop(
-                    item,
-                    "show_settings",
-                    icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
-                    icon_only=True,
-                    emboss=False,
-                )
-                header.label(text="Target Settings")
-                if item.show_settings:
-                    _draw_bake_target_settings(settings_col, item)
-
         box = layout.box()
         header = box.row(align=True)
         header.scale_y = 1.4
@@ -360,19 +463,20 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
         if data.show_texture_sets:
             row = box.row()
             row.template_list(
-                "DUMMYBAKE_UL_texture_sets",
+                "BAKERY_UL_texture_sets",
                 "",
                 data,
                 "texture_sets",
                 data,
                 "active_texture_index",
-                rows=2,
+                rows=4,
             )
             col = row.column(align=True)
             col.operator("bakery.texture_set_add", icon="ADD", text="")
             col.operator("bakery.texture_set_remove", icon="REMOVE", text="")
-            clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
-            clear_op.list_kind = "TEXTURE"
+            col.separator()
+            col.operator("bakery.texture_set_move_up", icon="TRIA_UP", text="")
+            col.operator("bakery.texture_set_move_down", icon="TRIA_DOWN", text="")
 
             if tex_set:
                 row = box.row(align=True)
@@ -393,17 +497,19 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     res_split = res_row.split(factor=0.4, align=True)
                     res_split.label(text="Resolution")
                     res_split.prop(tex_set, "size", text="")
+                    set_col.separator(factor=0.3)
                     row = set_col.row(align=True)
                     row.prop(tex_set, "override_dilation", text="")
                     dilation_row = row.row(align=True)
                     dilation_row.enabled = tex_set.override_dilation
                     dilation_row.prop(tex_set, "set_dilation", text="Padding (px)")
+                    set_col.separator(factor=0.3)
                     row = set_col.row(align=True)
                     row.prop(tex_set, "override_msaa", text="")
                     msaa_row = row.row(align=True)
                     msaa_row.enabled = tex_set.override_msaa
                     msaa_split = msaa_row.split(factor=0.4, align=True)
-                    msaa_split.label(text="MSAA")
+                    msaa_split.label(text="Anti-Aliasing")
                     msaa_split.prop(tex_set, "set_msaa", text="")
 
                 row = box.row(align=True)
@@ -463,23 +569,24 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Low Poly", icon="MESH_ICOSPHERE")
+        header.label(text="Targets", icon="MESH_ICOSPHERE")
         if data.show_low_polys:
             row = low_box.row()
             row.template_list(
-                "DUMMYBAKE_UL_low_polys",
+                "BAKERY_UL_low_polys",
                 "",
                 tex_set,
                 "low_polys",
                 tex_set,
                 "active_low_index",
-                rows=2,
+                rows=4,
             )
             col = row.column(align=True)
             col.operator("bakery.low_poly_add", icon="ADD", text="")
             col.operator("bakery.low_poly_remove", icon="REMOVE", text="")
-            clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
-            clear_op.list_kind = "LOW"
+            col.separator()
+            col.operator("bakery.low_poly_move_up", icon="TRIA_UP", text="")
+            col.operator("bakery.low_poly_move_down", icon="TRIA_DOWN", text="")
 
             if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
                 low_item = tex_set.low_polys[tex_set.active_low_index]
@@ -491,7 +598,7 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                     icon_only=True,
                     emboss=False,
                 )
-                row.label(text="Override Global Settings")
+                row.label(text="Override Projection Settings")
                 if low_item.override_global_settings:
                     cage_col = low_box.column(align=True)
                     cage_row = cage_col.row(align=True)
@@ -531,23 +638,24 @@ class DUMMYBAKE_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            high_header.label(text="High Poly", icon="MESH_UVSPHERE")
+            high_header.label(text="Sources", icon="MESH_UVSPHERE")
             if data.show_high_polys:
                 row = high_box.row()
                 row.template_list(
-                    "DUMMYBAKE_UL_high_polys",
+                "BAKERY_UL_high_polys",
                     "",
                     low_item,
                     "high_polys",
                     low_item,
                     "active_high_index",
-                    rows=2,
+                    rows=4,
                 )
                 col = row.column(align=True)
                 col.operator("bakery.high_poly_add", icon="ADD", text="")
                 col.operator("bakery.high_poly_remove", icon="REMOVE", text="")
-                clear_op = col.operator("bakery.clear_selection", icon="PANEL_CLOSE", text="")
-                clear_op.list_kind = "HIGH"
+                col.separator()
+                col.operator("bakery.high_poly_move_up", icon="TRIA_UP", text="")
+                col.operator("bakery.high_poly_move_down", icon="TRIA_DOWN", text="")
                 if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
                     high_item = low_item.high_polys[low_item.active_high_index]
                     high_box.prop(high_item, "color_attribute")
