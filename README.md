@@ -1,21 +1,21 @@
 # Little Bakery
 ## What is Little Bakery?
 Little Bakery is a Blender addon that automates baking workflows for texturing.
-It supports both low to high poly bakes and low poly only bakes.
+It supports both target to source bakes and target-only bakes.
 
 ## What makes it special?
 Little Bakery allows for grouping many objects and baking them all with a single click. Settings are saved and rebaking is easy. Bake multiple texture types, multiple objects, combine, mix and match them as you wish.
 
 ## What it does
-- Manages texture sets with low poly + high poly lists.
+- Manages texture sets with target + source lists.
 - Bakes multiple targets in one pass (per texture set or all sets).
 - Adds configurable padding to remove UV seams.
 - Supports MSAA-style supersampling by baking at a higher resolution and
   downscaling before saving.
-- Lets you bake vertex color attributes by name, per high poly.
+- Lets you bake vertex color attributes by name, per source.
 
 ## Addon "Jargon"
-- Texture Sets - refers to a set of low poly/high poly/cage files baked into a signle image set. Multiple low poly objects can be baked on the same image set, each with corresponding high poly.
+- Texture Sets - refers to a set of target/source/cage files baked into a signle image set. Multiple targets can be baked on the same image set, each with corresponding sources.
 - Global Settings
 - Local Settings
 - MSAA
@@ -40,7 +40,7 @@ Bake targets can be also described as specific baked images. Each one has the op
   - Distance
 - Position
 - Color Attribute
-  - Color Attribute (Default = 'Color') - allows for baking of vertex color information. Can be overriten per set or high poly object.
+  - Color Attribute (Default = 'Color') - allows for baking of vertex color information. Can be overriten per set or source object.
 - Random Island (ID Mask)
 
 ## Output settings

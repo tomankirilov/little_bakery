@@ -29,7 +29,7 @@ class BakeryHighPolyItem(bpy.types.PropertyGroup):
 
 
 class BakeryLowPolyItem(bpy.types.PropertyGroup):
-    # store per-low-poly cage settings here so each low poly can override.
+    # store per-target cage settings here so each target can override.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     high_polys: bpy.props.CollectionProperty(type=BakeryHighPolyItem)
     active_high_index: bpy.props.IntProperty(default=-1)
@@ -73,9 +73,9 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
         name="Mode",
         items=[
             ("GLOBAL", "Global", "Occlusion from all meshes in the scene"),
-            ("SET", "Set", "Occlusion from only the high polys in this texture set"),
-            ("LOCAL", "Local", "Occlusion from only the high polys linked to each low poly"),
-            ("ISOLATED", "Isolated", "Occlusion per high poly mesh."),
+            ("SET", "Set", "Occlusion from only the sources in this texture set"),
+            ("LOCAL", "Local", "Occlusion from only the sources linked to each target"),
+            ("ISOLATED", "Isolated", "Occlusion per source mesh."),
         ],
         default="SET",
     )
@@ -175,12 +175,12 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     )
     set_dilation: bpy.props.IntProperty(name="Padding (px)", default=4, min=0)
     set_msaa: bpy.props.EnumProperty(
-        name="MSAA",
+        name="Anti-Aliasing",
         items=[
             ("NONE", "None", ""),
-            ("2", "x2", ""),
-            ("4", "x4", ""),
-            ("8", "x8", ""),
+            ("2", "MSAA x2", ""),
+            ("4", "MSAA x4", ""),
+            ("8", "MSAA x8", ""),
         ],
         default="NONE",
     )

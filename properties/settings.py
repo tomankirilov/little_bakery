@@ -36,8 +36,8 @@ class BakeryData(bpy.types.PropertyGroup):
     texture_sets: bpy.props.CollectionProperty(type=BakeryTextureSet)
     active_texture_index: bpy.props.IntProperty(default=-1)
     show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=False)
-    show_low_polys: bpy.props.BoolProperty(name="Show Low Poly", default=False)
-    show_high_polys: bpy.props.BoolProperty(name="Show High Poly", default=False)
+    show_low_polys: bpy.props.BoolProperty(name="Show Targets", default=False)
+    show_high_polys: bpy.props.BoolProperty(name="Show Sources", default=False)
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
     show_render_image: bpy.props.BoolProperty(name="Show Image", default=False)
@@ -62,12 +62,12 @@ class BakeryData(bpy.types.PropertyGroup):
         default="CPU",
     )
     global_msaa: bpy.props.EnumProperty(
-        name="MSAA",
+        name="Anti-Aliasing",
         items=[
             ("NONE", "None", ""),
-            ("2", "x2", ""),
-            ("4", "x4", ""),
-            ("8", "x8", ""),
+            ("2", "MSAA x2", ""),
+            ("4", "MSAA x4", ""),
+            ("8", "MSAA x8", ""),
         ],
         default="NONE",
     )
