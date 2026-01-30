@@ -281,6 +281,7 @@ def _make_image(name, width, height):
     # Reuse existing images by name to avoid duplicates.
     image = bpy.data.images.get(name)
     if image:
+        image.source = "GENERATED"
         if image.size[0] != width or image.size[1] != height:
             try:
                 image.scale(width, height)
@@ -296,9 +297,18 @@ def _make_image(name, width, height):
 # clear the image pixels so the bake starts empty.
 def _clear_image(image):
     # clear pixels manually to avoid baking over old data.
+    image.source = "GENERATED"
     pixel_count = image.size[0] * image.size[1] * 4
-    image.pixels.foreach_set([0.0] * pixel_count)
-    image.update()
+    try:
+        image.pixels.foreach_set([0.0] * pixel_count)
+        image.update()
+    except RuntimeError:
+        try:
+            image.scale(image.size[0], image.size[1])
+            image.pixels.foreach_set([0.0] * pixel_count)
+            image.update()
+        except RuntimeError:
+            pass
 
 from .dilation import _dilate_image
 

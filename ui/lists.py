@@ -25,7 +25,7 @@ class BAKERY_UL_low_polys(bpy.types.UIList):
 
 class BAKERY_UL_high_polys(bpy.types.UIList):
     # draw each source row.
-    # Sources mirror the targets list layout for consistency.
+    # Sources mirror the target meshes list layout for consistency.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)

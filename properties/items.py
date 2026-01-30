@@ -184,7 +184,7 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
         ],
         default="NONE",
     )
-    override_bake_targets: bpy.props.BoolProperty(name="Override Bake Targets", default=False)
+    override_bake_targets: bpy.props.BoolProperty(name="Override Bake Passes", default=False)
     bake_target_mode: bpy.props.EnumProperty(
         name="Mode",
         items=[

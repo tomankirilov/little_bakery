@@ -357,7 +357,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            header.label(text="Bake Targets")
+            header.label(text="Bake Passes")
             if data.show_bake_targets:
                 bake_col = sections.column(align=True)
                 row = bake_col.row()
@@ -515,7 +515,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     icon_only=True,
                     emboss=False,
                 )
-                row.label(text="Override Bake Targets")
+                row.label(text="Override Bake Passes")
                 if tex_set.override_bake_targets:
                     row = _indent_column(box)
                     row.prop(tex_set, "bake_target_mode")
@@ -564,7 +564,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Targets", icon="MESH_ICOSPHERE")
+        header.label(text="Target Meshes", icon="MESH_ICOSPHERE")
         if data.show_low_polys:
             row = low_box.row()
             row.template_list(
@@ -633,7 +633,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 icon_only=True,
                 emboss=False,
             )
-            high_header.label(text="Sources", icon="MESH_UVSPHERE")
+            high_header.label(text="Source Meshes", icon="MESH_UVSPHERE")
             if data.show_high_polys:
                 row = high_box.row()
                 row.template_list(
