@@ -112,7 +112,7 @@ def _draw_about(section_layout, data, force_expand=False):
             "wm.url_open",
             text="GitHub",
             icon="EXPERIMENTAL",
-        ).url = "https://github.com/tomankirilov/little_bakery"
+        ).url = "https://github.com/tomankirilov/little_bakery/tree/1.0-pale-buns"
         
         buttons_col.operator(
             "wm.url_open",
@@ -245,12 +245,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     "wm.url_open",
                     text="GitHub",
                     icon="EXPERIMENTAL",
-                ).url = "https://github.com/tomankirilov/little_bakery"
-                # buttons_col.operator(
-                #     "wm.url_open",
-                #     text="Documentation",
-                #     icon="HELP",
-                # ).url = "https://tomankirilov.github.io/little_bakery_docs/"
+                ).url = "https://github.com/tomankirilov/little_bakery/tree/1.0-pale-buns"
                 buttons_col.operator(
                     "wm.url_open",
                     text="About",
