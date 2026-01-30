@@ -199,60 +199,6 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 _ensure_defaults(context.scene)
             except Exception:
                 pass
-        def _draw_about_inner(section_layout, force_expand=False):
-            about_box = section_layout.box()
-            header = about_box.row(align=True)
-            header.prop(
-                data,
-                "show_about",
-                icon="TRIA_DOWN" if (data.show_about or force_expand) else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Little Bakery", icon="QUESTION")
-            #header.label(text="About", icon="USER")
-            if data.show_about or force_expand:
-                about_col = about_box.column(align=True)
-
-                label_row = about_col.row()
-                label_row.alignment = "CENTER"
-                label_row.label(text="BAKED WITH LOVE")
-                
-                label_row = about_col.row()
-                label_row.alignment = "CENTER"
-                label_row.label(text="♥️ for everybody ♥️")
-
-                about_col.separator(factor=1.0)
-
-                version = _addon_version() or _manifest_version()
-                version_name = _version_name()
-                if version and version_name:
-                    version_label = f"({version} - {version_name})"
-                elif version:
-                    version_label = f"v{version}"
-                elif version_name:
-                    version_label = f"{version_name}"
-                else:
-                    version_label = "vUNKNOWN"
-                label_row = about_col.row()
-                label_row.alignment = "CENTER"
-                label_row.label(text=version_label)
-
-                about_col.separator(factor=2.0)
-
-                buttons_col = about_col.column(align=True)
-                buttons_col.operator(
-                    "wm.url_open",
-                    text="GitHub",
-                    icon="EXPERIMENTAL",
-                ).url = "https://github.com/tomankirilov/little_bakery/tree/1.0-pale-buns"
-                buttons_col.operator(
-                    "wm.url_open",
-                    text="About",
-                    icon="USER",
-                ).url = "https://tomanov.art/"
-
-                about_col.separator(factor=0.5)
 
         # only show baking progress and about while baking.
         if data.is_baking:
