@@ -70,7 +70,7 @@ class BakeryPreferences(bpy.types.AddonPreferences):
     )
     name_separator: bpy.props.StringProperty(
         name="Name Separator",
-        description="Separator between texture set and bake target names",
+        description="Separator between texture set and bake pass names",
         default="_",
     )
 

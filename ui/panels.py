@@ -2,7 +2,7 @@ from pathlib import Path
 
 import bpy
 
-from .draw_helpers import _indent_column, _draw_resolution_row, _draw_bake_target_settings
+from .draw_helpers import _indent_column, _draw_resolution_row, _draw_bake_pass_settings
 
 
 def _addon_version():
@@ -154,6 +154,9 @@ class BAKERY_PT_completed(bpy.types.Panel):
         title_row.alignment = "CENTER"
         title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
 
+        info_col = completed_box.column(align=True)
+        info_col.label(text=f"- Completed in {data.last_bake_duration}")
+
         textures = [item.value for item in data.last_bake_textures]
         if textures:
             list_box = layout.box()
@@ -193,7 +196,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         data = context.scene.bakery_data
-        if data and (not data.texture_sets or not data.global_bake_targets):
+        if data and (not data.texture_sets or not data.global_bake_passes):
             try:
                 from ..properties.defaults import _ensure_defaults
                 _ensure_defaults(context.scene)
@@ -212,7 +215,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
 
             info_col = progress_box.column(align=True)
             info_col.label(text=f"- Set: {data.baking_set_name}")
-            info_col.label(text=f"- Target: {data.baking_target_name}")
+            info_col.label(text=f"- Pass: {data.baking_pass_name}")
 
             
             progress_box.prop(data, "baking_progress", text="Progress", slider=True)
@@ -298,33 +301,33 @@ class BAKERY_PT_tools(bpy.types.Panel):
             header = sections.row(align=True)
             header.prop(
                 data,
-                "show_bake_targets",
-                icon="TRIA_DOWN" if data.show_bake_targets else "TRIA_RIGHT",
+                "show_bake_passes",
+                icon="TRIA_DOWN" if data.show_bake_passes else "TRIA_RIGHT",
                 icon_only=True,
                 emboss=False,
             )
             header.label(text="Bake Passes")
-            if data.show_bake_targets:
+            if data.show_bake_passes:
                 bake_col = sections.column(align=True)
                 row = bake_col.row()
                 row.template_list(
-                    "BAKERY_UL_bake_targets",
+                    "BAKERY_UL_bake_passes",
                     "",
                     data,
-                    "global_bake_targets",
+                    "global_bake_passes",
                     data,
-                    "active_global_bake_target_index",
+                    "active_global_bake_pass_index",
                     rows=4,
                 )
                 col = row.column(align=True)
-                col.operator("bakery.bake_target_add_global", icon="ADD", text="")
-                col.operator("bakery.bake_target_remove_global", icon="REMOVE", text="")
+                col.operator("bakery.bake_pass_add_global", icon="ADD", text="")
+                col.operator("bakery.bake_pass_remove_global", icon="REMOVE", text="")
                 col.separator()
-                col.operator("bakery.bake_target_move_global_up", icon="TRIA_UP", text="")
-                col.operator("bakery.bake_target_move_global_down", icon="TRIA_DOWN", text="")
+                col.operator("bakery.bake_pass_move_global_up", icon="TRIA_UP", text="")
+                col.operator("bakery.bake_pass_move_global_down", icon="TRIA_DOWN", text="")
 
-                if data.global_bake_targets and 0 <= data.active_global_bake_target_index < len(data.global_bake_targets):
-                    item = data.global_bake_targets[data.active_global_bake_target_index]
+                if data.global_bake_passes and 0 <= data.active_global_bake_pass_index < len(data.global_bake_passes):
+                    item = data.global_bake_passes[data.active_global_bake_pass_index]
                     settings_col = bake_col.column(align=True)
                     settings_col.separator()
                     header = settings_col.row(align=True)
@@ -335,9 +338,9 @@ class BAKERY_PT_tools(bpy.types.Panel):
                         icon_only=True,
                         emboss=False,
                     )
-                    header.label(text="Target Settings")
+                    header.label(text="Pass Settings")
                     if item.show_settings:
-                        _draw_bake_target_settings(settings_col, item)
+                        _draw_bake_pass_settings(settings_col, item)
 
             sections.separator(factor=0.4)
 
@@ -456,33 +459,33 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 row = box.row(align=True)
                 row.prop(
                     tex_set,
-                    "override_bake_targets",
-                    icon="TRIA_DOWN" if tex_set.override_bake_targets else "TRIA_RIGHT",
+                    "override_bake_passes",
+                    icon="TRIA_DOWN" if tex_set.override_bake_passes else "TRIA_RIGHT",
                     icon_only=True,
                     emboss=False,
                 )
                 row.label(text="Override Bake Passes")
-                if tex_set.override_bake_targets:
+                if tex_set.override_bake_passes:
                     row = _indent_column(box)
-                    row.prop(tex_set, "bake_target_mode")
+                    row.prop(tex_set, "bake_pass_mode")
                     list_row = row.row()
                     list_row.template_list(
-                        "BAKERY_UL_bake_targets",
+                        "BAKERY_UL_bake_passes",
                         "",
                         tex_set,
-                        "bake_targets",
+                        "bake_passes",
                         tex_set,
-                        "active_bake_target_index",
+                        "active_bake_pass_index",
                         rows=4,
                     )
                     col = list_row.column(align=True)
-                    col.operator("bakery.bake_target_add_set", icon="ADD", text="")
-                    col.operator("bakery.bake_target_remove_set", icon="REMOVE", text="")
+                    col.operator("bakery.bake_pass_add_set", icon="ADD", text="")
+                    col.operator("bakery.bake_pass_remove_set", icon="REMOVE", text="")
                     col.separator()
-                    col.operator("bakery.bake_target_move_set_up", icon="TRIA_UP", text="")
-                    col.operator("bakery.bake_target_move_set_down", icon="TRIA_DOWN", text="")
-                    if tex_set.bake_targets and 0 <= tex_set.active_bake_target_index < len(tex_set.bake_targets):
-                        item = tex_set.bake_targets[tex_set.active_bake_target_index]
+                    col.operator("bakery.bake_pass_move_set_up", icon="TRIA_UP", text="")
+                    col.operator("bakery.bake_pass_move_set_down", icon="TRIA_DOWN", text="")
+                    if tex_set.bake_passes and 0 <= tex_set.active_bake_pass_index < len(tex_set.bake_passes):
+                        item = tex_set.bake_passes[tex_set.active_bake_pass_index]
                         settings_col = row.column(align=True)
                         settings_col.separator()
                         header = settings_col.row(align=True)
@@ -493,9 +496,9 @@ class BAKERY_PT_tools(bpy.types.Panel):
                             icon_only=True,
                             emboss=False,
                         )
-                        header.label(text="Target Settings")
+                        header.label(text="Pass Settings")
                         if item.show_settings:
-                            _draw_bake_target_settings(settings_col, item)
+                            _draw_bake_pass_settings(settings_col, item)
 
         if not tex_set:
             return
@@ -505,32 +508,32 @@ class BAKERY_PT_tools(bpy.types.Panel):
         header.scale_y = 1.4
         header.prop(
             data,
-            "show_low_polys",
-            icon="TRIA_DOWN" if data.show_low_polys else "TRIA_RIGHT",
+            "show_target_meshes",
+            icon="TRIA_DOWN" if data.show_target_meshes else "TRIA_RIGHT",
             icon_only=True,
             emboss=False,
         )
         header.label(text="Target Meshes", icon="MESH_ICOSPHERE")
-        if data.show_low_polys:
+        if data.show_target_meshes:
             row = low_box.row()
             row.template_list(
-                "BAKERY_UL_low_polys",
+                "BAKERY_UL_target_meshes",
                 "",
                 tex_set,
-                "low_polys",
+                "target_meshes",
                 tex_set,
-                "active_low_index",
+                "active_target_index",
                 rows=4,
             )
             col = row.column(align=True)
-            col.operator("bakery.low_poly_add", icon="ADD", text="")
-            col.operator("bakery.low_poly_remove", icon="REMOVE", text="")
+            col.operator("bakery.target_mesh_add", icon="ADD", text="")
+            col.operator("bakery.target_mesh_remove", icon="REMOVE", text="")
             col.separator()
-            col.operator("bakery.low_poly_move_up", icon="TRIA_UP", text="")
-            col.operator("bakery.low_poly_move_down", icon="TRIA_DOWN", text="")
+            col.operator("bakery.target_mesh_move_up", icon="TRIA_UP", text="")
+            col.operator("bakery.target_mesh_move_down", icon="TRIA_DOWN", text="")
 
-            if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
-                low_item = tex_set.low_polys[tex_set.active_low_index]
+            if tex_set.target_meshes and 0 <= tex_set.active_target_index < len(tex_set.target_meshes):
+                low_item = tex_set.target_meshes[tex_set.active_target_index]
                 row = low_box.row(align=True)
                 row.prop(
                     low_item,
@@ -567,39 +570,41 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     ray_row.enabled = low_item.override_cage_max_ray_distance
                     ray_row.prop(low_item, "cage_max_ray_distance")
 
-        if tex_set.low_polys and 0 <= tex_set.active_low_index < len(tex_set.low_polys):
-            low_item = tex_set.low_polys[tex_set.active_low_index]
+        if tex_set.target_meshes and 0 <= tex_set.active_target_index < len(tex_set.target_meshes):
+            low_item = tex_set.target_meshes[tex_set.active_target_index]
             high_box = layout.box()
             high_header = high_box.row(align=True)
             high_header.scale_y = 1.4
             high_header.prop(
                 data,
-                "show_high_polys",
-                icon="TRIA_DOWN" if data.show_high_polys else "TRIA_RIGHT",
+                "show_source_meshes",
+                icon="TRIA_DOWN" if data.show_source_meshes else "TRIA_RIGHT",
                 icon_only=True,
                 emboss=False,
             )
             high_header.label(text="Source Meshes", icon="MESH_UVSPHERE")
-            if data.show_high_polys:
+            if data.show_source_meshes:
                 row = high_box.row()
                 row.template_list(
-                "BAKERY_UL_high_polys",
+                "BAKERY_UL_source_meshes",
                     "",
                     low_item,
-                    "high_polys",
+                    "source_meshes",
                     low_item,
-                    "active_high_index",
+                    "active_source_index",
                     rows=4,
                 )
                 col = row.column(align=True)
-                col.operator("bakery.high_poly_add", icon="ADD", text="")
-                col.operator("bakery.high_poly_remove", icon="REMOVE", text="")
+                col.operator("bakery.source_mesh_add", icon="ADD", text="")
+                col.operator("bakery.source_mesh_remove", icon="REMOVE", text="")
                 col.separator()
-                col.operator("bakery.high_poly_move_up", icon="TRIA_UP", text="")
-                col.operator("bakery.high_poly_move_down", icon="TRIA_DOWN", text="")
-                if low_item.high_polys and 0 <= low_item.active_high_index < len(low_item.high_polys):
-                    high_item = low_item.high_polys[low_item.active_high_index]
+                col.operator("bakery.source_mesh_move_up", icon="TRIA_UP", text="")
+                col.operator("bakery.source_mesh_move_down", icon="TRIA_DOWN", text="")
+                if low_item.source_meshes and 0 <= low_item.active_source_index < len(low_item.source_meshes):
+                    high_item = low_item.source_meshes[low_item.active_source_index]
                     high_box.prop(high_item, "color_attribute")
 
         if data.is_baking:
             return
+
+

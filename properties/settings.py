@@ -1,7 +1,7 @@
 import os
 import bpy
 
-from .items import BakeryBakeTargetItem, BakeryTextureSet, BakeryStringItem
+from .items import BakeryBakePassItem, BakeryTextureSet, BakeryStringItem
 
 
 # normalize the output folder name to a safe relative form.
@@ -36,19 +36,19 @@ class BakeryData(bpy.types.PropertyGroup):
     texture_sets: bpy.props.CollectionProperty(type=BakeryTextureSet)
     active_texture_index: bpy.props.IntProperty(default=-1)
     show_texture_sets: bpy.props.BoolProperty(name="Show Texture Sets", default=False)
-    show_low_polys: bpy.props.BoolProperty(name="Show Target Meshes", default=False)
-    show_high_polys: bpy.props.BoolProperty(name="Show Source Meshes", default=False)
+    show_target_meshes: bpy.props.BoolProperty(name="Show Target Meshes", default=False)
+    show_source_meshes: bpy.props.BoolProperty(name="Show Source Meshes", default=False)
     show_global_settings: bpy.props.BoolProperty(name="Show Global Settings", default=False)
     show_render_settings: bpy.props.BoolProperty(name="Show Rendering", default=False)
     show_render_image: bpy.props.BoolProperty(name="Show Image", default=False)
     show_render_padding: bpy.props.BoolProperty(name="Show Padding", default=False)
     show_render_cage: bpy.props.BoolProperty(name="Show Cage", default=False)
-    show_bake_targets: bpy.props.BoolProperty(name="Show Bake Passes", default=False)
+    show_bake_passes: bpy.props.BoolProperty(name="Show Bake Passes", default=False)
     show_output: bpy.props.BoolProperty(name="Show Output", default=False)
     show_about: bpy.props.BoolProperty(name="Show About", default=False)
     is_baking: bpy.props.BoolProperty(name="Is Baking", default=False)
     baking_set_name: bpy.props.StringProperty(name="Baking Set", default="")
-    baking_target_name: bpy.props.StringProperty(name="Baking Target", default="")
+    baking_pass_name: bpy.props.StringProperty(name="Baking Pass", default="")
     baking_progress: bpy.props.FloatProperty(name="Baking Progress", default=0.0, min=0.0, max=1.0)
     last_bake_duration: bpy.props.StringProperty(name="Last Bake Duration", default="")
     show_last_bake: bpy.props.BoolProperty(name="Show Last Bake", default=True)
@@ -115,8 +115,8 @@ class BakeryData(bpy.types.PropertyGroup):
         min=1,
         subtype="NONE",
     )
-    global_bake_targets: bpy.props.CollectionProperty(type=BakeryBakeTargetItem)
-    active_global_bake_target_index: bpy.props.IntProperty(default=-1)
+    global_bake_passes: bpy.props.CollectionProperty(type=BakeryBakePassItem)
+    active_global_bake_pass_index: bpy.props.IntProperty(default=-1)
     global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.0, min=0.0)
     global_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",

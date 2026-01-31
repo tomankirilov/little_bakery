@@ -2,18 +2,18 @@ import bpy
 
 from .lists import (
     BAKERY_UL_texture_sets,
-    BAKERY_UL_low_polys,
-    BAKERY_UL_high_polys,
-    BAKERY_UL_bake_targets,
+    BAKERY_UL_target_meshes,
+    BAKERY_UL_source_meshes,
+    BAKERY_UL_bake_passes,
 )
 from .panels import BAKERY_PT_tools, BAKERY_PT_completed
 
 
 classes = (
     BAKERY_UL_texture_sets,
-    BAKERY_UL_low_polys,
-    BAKERY_UL_high_polys,
-    BAKERY_UL_bake_targets,
+    BAKERY_UL_target_meshes,
+    BAKERY_UL_source_meshes,
+    BAKERY_UL_bake_passes,
     BAKERY_PT_completed,
     BAKERY_PT_tools,
 )
