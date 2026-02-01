@@ -76,7 +76,6 @@ def _tag_redraw(context):
     except RuntimeError:
         pass
 
-
 # Show progress text and log it.
 def _progress(operator, context, message):
     # progress notification in Blender;s status bar.
@@ -314,6 +313,8 @@ def _clear_image(image):
 from .dilation import _dilate_image
 from .fxaa import _apply_fxaa
 from .curvature import _normal_to_curvature
+from .normalize import _normalize_image_luma
+from .sharpen import _sharpen_image
 
 # save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
@@ -704,6 +705,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             for item in targets:
                 target_name = item.pass_type
                 pass_start = time.perf_counter()
+                stage_marks = {"start": pass_start}
 
                 progress_value += 1
                 if wm:
@@ -771,6 +773,27 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         if item.object and item.object.type == "MESH"
                     ]
                     high_objs = [item.object for item in high_items]
+                    force_selected_to_active = None
+                    ao_mode = item.ao_occlusion_mode if target_name == "ambient_occlusion" else None
+                    ao_sources = None
+                    if target_name == "ambient_occlusion":
+                        if ao_mode == "SET":
+                            ao_sources = list(set_high_objs)
+                        elif ao_mode in {"LOCAL", "ISOLATED"}:
+                            ao_sources = list(high_objs)
+                        else:
+                            ao_sources = list(high_objs)
+                        # Exclude other targets and cage objects from occluders.
+                        target_objs = {t.object for t in tex_set.target_meshes if t.object}
+                        cage_objs = {t.cage_object for t in tex_set.target_meshes if t.cage_object}
+                        ao_sources = [obj for obj in ao_sources if obj not in target_objs and obj not in cage_objs]
+                        _ensure_material_slot(low_obj, material)
+                        force_selected_to_active = True if ao_sources else False
+
+                    if ao_sources is not None:
+                        selected_objects = ao_sources + [low_obj]
+                    else:
+                        selected_objects = high_objs + [low_obj]
                     if not high_objs:
                         # If there is no source, bake the target with the target material.
                         if use_bakery_material:
@@ -797,28 +820,47 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         f"with {len(high_objs)} source object(s)",
                     )
                     restore_hide_render = None
-                    if target_name == "ambient_occlusion":
-                        occlusion_mode = item.ao_occlusion_mode
-                        if occlusion_mode in {"SET", "LOCAL"}:
-                            restore_hide_render = {obj: obj.hide_render for obj in scene.objects}
-                            for obj in scene.objects:
-                                obj.hide_render = True
-                            visible = set_high_objs if occlusion_mode == "SET" else high_objs
-                            for obj in visible + [low_obj]:
-                                obj.hide_render = False
-                    for obj in high_objs + [low_obj]:
+                    if ao_sources is not None:
+                        restore_hide_render = {obj: obj.hide_render for obj in scene.objects}
+                        for obj in scene.objects:
+                            obj.hide_render = True
+                        for obj in ao_sources + [low_obj]:
+                            obj.hide_render = False
+                        visible_objs = ao_sources + [low_obj]
+                    else:
+                        visible_objs = high_objs + [low_obj]
+                    for obj in visible_objs:
                         obj.hide_viewport = False
                         obj.hide_render = False
 
                     if context.mode != "OBJECT":
                         bpy.ops.object.mode_set(mode="OBJECT")
 
+                    extra_links = []
+                    if ao_sources is not None:
+                        temp_collection = _ensure_temp_collection(scene, view_layer)
+                        for obj in ao_sources:
+                            if obj.name not in view_layer.objects:
+                                try:
+                                    if obj.name not in temp_collection.objects:
+                                        temp_collection.objects.link(obj)
+                                    extra_links.append(obj)
+                                except RuntimeError:
+                                    continue
+
                     selected, temp_links, temp_collection = _set_selection(
                         scene,
                         view_layer,
-                        high_objs + [low_obj],
+                        selected_objects,
                         active=low_obj,
                     )
+                    if ao_sources is not None:
+                        for obj in selected:
+                            obj.select_set(False)
+                        for obj in ao_sources:
+                            obj.select_set(True)
+                        low_obj.select_set(True)
+                        view_layer.objects.active = low_obj
                     if (not selected or low_obj not in selected
                             or context.view_layer.objects.active != low_obj):
                         for obj in temp_links:
@@ -826,6 +868,10 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                 temp_collection.objects.unlink(obj)
                         continue
                     bake.use_selected_to_active = len(selected) > 1
+                    if force_selected_to_active is False:
+                        bake.use_selected_to_active = False
+                    elif force_selected_to_active is True:
+                        bake.use_selected_to_active = True
                     if bake.use_selected_to_active and len(selected) < 2:
                         for obj in temp_links:
                             if obj.name in temp_collection.objects:
@@ -867,9 +913,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         for obj in temp_links:
                             if obj.name in temp_collection.objects:
                                 temp_collection.objects.unlink(obj)
+                        for obj in extra_links:
+                            if obj.name in temp_collection.objects:
+                                temp_collection.objects.unlink(obj)
                         if restore_hide_render is not None:
                             for obj, state in restore_hide_render.items():
                                 obj.hide_render = state
+                    stage_marks["bake"] = time.perf_counter()
                     bake.use_clear = False
                     if target_name == "color_attribute":
                         # Restore the shared material after the color-attribute bake.
@@ -881,6 +931,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if dilation > 0:
                     _dilate_image(image, dilation, settings["dilation_method"])
                     _debug_log(context, f"Applied dilation of {dilation}px")
+                stage_marks["dilation"] = time.perf_counter()
                 if target_name == "curvature_from_normal":
                     _normal_to_curvature(
                         image,
@@ -890,6 +941,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         invert=item.normal_curv_invert,
                     )
                     _debug_log(context, "Converted normal map to curvature")
+                stage_marks["curvature"] = time.perf_counter()
                 if use_fxaa:
                     _apply_fxaa(
                         image,
@@ -897,6 +949,17 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         blend=settings["fxaa_blend"],
                     )
                     _debug_log(context, "Applied FXAA")
+                if target_name == "ambient_occlusion" and item.ao_normalize:
+                    _normalize_image_luma(image)
+                    _debug_log(context, "Normalized AO")
+                if item.sharpen:
+                    _sharpen_image(
+                        image,
+                        amount=item.sharpen_amount,
+                        per_channel=item.sharpen_per_channel,
+                    )
+                    _debug_log(context, "Applied sharpen")
+                stage_marks["fxaa"] = time.perf_counter()
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
                     _debug_log(
@@ -904,6 +967,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         f"Downscaled from {bake_resolution[0]}x{bake_resolution[1]} "
                         f"to {target_resolution[0]}x{target_resolution[1]}",
                     )
+                stage_marks["downscale"] = time.perf_counter()
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,
@@ -913,6 +977,28 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     scene=scene,
                     context=context,
                 )
+                stage_marks["save"] = time.perf_counter()
+                bake_t = stage_marks.get("bake", stage_marks["start"])
+                dilation_t = stage_marks.get("dilation", bake_t)
+                curvature_t = stage_marks.get("curvature", dilation_t)
+                fxaa_t = stage_marks.get("fxaa", curvature_t)
+                downscale_t = stage_marks.get("downscale", fxaa_t)
+                save_t = stage_marks.get("save", downscale_t)
+                timing_msg = (
+                    "Bakery Timing "
+                    f"{texture_name}: bake {bake_t - stage_marks['start']:.2f}s, "
+                    f"dilation {dilation_t - bake_t:.2f}s, "
+                    f"curvature {curvature_t - dilation_t:.2f}s, "
+                    f"fxaa {fxaa_t - curvature_t:.2f}s, "
+                    f"downscale {downscale_t - fxaa_t:.2f}s, "
+                    f"save {save_t - downscale_t:.2f}s, "
+                    f"total {save_t - stage_marks['start']:.2f}s"
+                )
+                print(timing_msg)
+                try:
+                    operator.report({"INFO"}, timing_msg)
+                except Exception:
+                    pass
                 baked_texture_times[texture_name] = time.perf_counter() - pass_start
 
             for obj, mats in saved_materials.items():
@@ -976,6 +1062,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     print(f"Bakery: {message}")
     operator.report({"INFO"}, message)
     return True
+
+
 
 
 

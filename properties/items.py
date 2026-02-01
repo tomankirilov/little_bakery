@@ -71,10 +71,10 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
     )
     ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
+    ao_normalize: bpy.props.BoolProperty(name="Normalize", default=False)
     ao_occlusion_mode: bpy.props.EnumProperty(
         name="Mode",
         items=[
-            ("GLOBAL", "Global", "Occlusion from all meshes in the scene"),
             ("SET", "Set", "Occlusion from only the sources in this texture set"),
             ("LOCAL", "Local", "Occlusion from only the sources linked to each target"),
             ("ISOLATED", "Isolated", "Occlusion per source mesh."),
@@ -160,6 +160,9 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
         ],
         default="POS_Z",
     )
+    sharpen: bpy.props.BoolProperty(name="Sharpen", default=False)
+    sharpen_amount: bpy.props.FloatProperty(name="Amount", default=0.5, min=0.0, max=2.0)
+    sharpen_per_channel: bpy.props.BoolProperty(name="Per Channel", default=False)
 
 
 class BakeryTextureSet(bpy.types.PropertyGroup):
