@@ -60,3 +60,4 @@ def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=Fal
 
     image.pixels.foreach_set(out_pixels)
     image.update()
+

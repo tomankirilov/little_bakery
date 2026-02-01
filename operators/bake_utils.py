@@ -651,6 +651,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     created_materials = []
     created_node_groups = []
     baked_texture_names = set()
+    baked_texture_times = {}
     start_time = time.perf_counter()
     cleared_images = set()
     _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
@@ -702,6 +703,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             targets = _collect_bake_passes(data, tex_set)
             for item in targets:
                 target_name = item.pass_type
+                pass_start = time.perf_counter()
 
                 progress_value += 1
                 if wm:
@@ -911,6 +913,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     scene=scene,
                     context=context,
                 )
+                baked_texture_times[texture_name] = time.perf_counter() - pass_start
 
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
@@ -964,7 +967,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     data.last_bake_textures.clear()
     for name in sorted(baked_texture_names):
         entry = data.last_bake_textures.add()
-        entry.value = name
+        duration = baked_texture_times.get(name)
+        if duration is None:
+            entry.value = name
+        else:
+            entry.value = f"{name} ({duration:.2f}s)"
     message = f"{label} finished in {elapsed:.2f}s"
     print(f"Bakery: {message}")
     operator.report({"INFO"}, message)
