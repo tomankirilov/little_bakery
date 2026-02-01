@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "little_bakery"
-version = "1.0.0"
+version = "1.1.0"
 name = "Little Bakery"
 tagline = "Bake automation addon."
 maintainer = "tomanov"

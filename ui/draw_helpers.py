@@ -19,12 +19,12 @@ def _draw_resolution_row(layout, obj, prop_name):
     row.prop(obj, prop_name, text="")
 
 
-# draw settings for a single bake target item.
-def _draw_bake_target_settings(layout, item):
+# draw settings for a single bake pass item.
+def _draw_bake_pass_settings(layout, item):
     row = layout.split(factor=0.4, align=True)
-    row.label(text="Target")
-    row.prop(item, "target_type", text="")
-    if item.target_type == "ambient_occlusion":
+    row.label(text="Pass")
+    row.prop(item, "pass_type", text="")
+    if item.pass_type == "ambient_occlusion":
         row = layout.split(factor=0.4, align=True)
         row.label(text="Mode")
         row.prop(item, "ao_occlusion_mode", text="")
@@ -32,7 +32,7 @@ def _draw_bake_target_settings(layout, item):
         layout.prop(item, "ao_render_samples")
         layout.prop(item, "ao_distance")
         layout.prop(item, "ao_contrast")
-    elif item.target_type == "normal":
+    elif item.pass_type == "normal":
         row = layout.split(factor=0.4, align=True)
         row.label(text="Space")
         row.prop(item, "normal_space", text="")
@@ -45,15 +45,20 @@ def _draw_bake_target_settings(layout, item):
         row = layout.split(factor=0.4, align=True)
         row.label(text="Swizzle B")
         row.prop(item, "normal_b", text="")
-    elif item.target_type == "curvature":
+    elif item.pass_type == "curvature":
         layout.prop(item, "curvature_exponent")
         layout.prop(item, "curvature_contrast")
-    elif item.target_type == "thickness":
+    elif item.pass_type == "curvature_from_normal":
+        layout.prop(item, "normal_curv_radius")
+        layout.prop(item, "normal_curv_strength")
+        layout.prop(item, "normal_curv_contrast")
+        layout.prop(item, "normal_curv_invert")
+    elif item.pass_type == "thickness":
         layout.prop(item, "thickness_samples")
         layout.prop(item, "thickness_render_samples")
         layout.prop(item, "thickness_distance")
-    elif item.target_type == "color_attribute":
+    elif item.pass_type == "color_attribute":
         layout.prop(item, "color_attribute_name")
-    elif item.target_type == "custom":
+    elif item.pass_type == "custom":
         layout.prop(item, "custom_material")
         layout.prop(item, "custom_bake_type")

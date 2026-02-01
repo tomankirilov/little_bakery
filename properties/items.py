@@ -1,10 +1,11 @@
 import bpy
 
 
-_BAKE_TARGET_LABELS = {
+_BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
+    "curvature_from_normal": "curvature_from_normal",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -14,25 +15,25 @@ _BAKE_TARGET_LABELS = {
 }
 
 
-def _update_target_type(self, context):
+def _update_pass_type(self, context):
     # keep the name in sync when the user hasn't typed a custom one.
     if not (self.name or "").strip():
-        self.name = _BAKE_TARGET_LABELS.get(self.target_type, self.target_type)
-    if self.target_type == "normal":
+        self.name = _BAKE_PASS_LABELS.get(self.pass_type, self.pass_type)
+    if self.pass_type == "normal":
         self.normal_space = "TANGENT"
 
 
-class BakeryHighPolyItem(bpy.types.PropertyGroup):
-    # keep high-poly entries lightweight; color_attribute is optional.
+class BakerySourceMeshItem(bpy.types.PropertyGroup):
+    # keep source entries lightweight; color_attribute is optional.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     color_attribute: bpy.props.StringProperty(name="Color Attribute", default="")
 
 
-class BakeryLowPolyItem(bpy.types.PropertyGroup):
-    # store per-target cage settings here so each target can override.
+class BakeryTargetMeshItem(bpy.types.PropertyGroup):
+    # store per-target mesh cage settings here so each target can override.
     object: bpy.props.PointerProperty(type=bpy.types.Object)
-    high_polys: bpy.props.CollectionProperty(type=BakeryHighPolyItem)
-    active_high_index: bpy.props.IntProperty(default=-1)
+    source_meshes: bpy.props.CollectionProperty(type=BakerySourceMeshItem)
+    active_source_index: bpy.props.IntProperty(default=-1)
     cage_object: bpy.props.PointerProperty(type=bpy.types.Object)
     use_cage: bpy.props.BoolProperty(name="Cage", default=False)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
@@ -46,26 +47,27 @@ class BakeryLowPolyItem(bpy.types.PropertyGroup):
     )
 
 
-class BakeryBakeTargetItem(bpy.types.PropertyGroup):
-    # one bake target entry with its own settings.
+class BakeryBakePassItem(bpy.types.PropertyGroup):
+    # one bake pass entry with its own settings.
     enabled: bpy.props.BoolProperty(name="Enabled", default=True)
     name: bpy.props.StringProperty(name="Name", default="")
-    show_settings: bpy.props.BoolProperty(name="Show Target Settings", default=True)
-    target_type: bpy.props.EnumProperty(
+    show_settings: bpy.props.BoolProperty(name="Show Pass Settings", default=True)
+    pass_type: bpy.props.EnumProperty(
         name="Type",
         items=[
             ("normal", "Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
+            ("curvature_from_normal", "Curvature (Normal)", ""),
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
-            ("custom", "Custom", ""),
             ("color_attribute", "Color Attribute", ""),
             ("random_island", "Random Island", ""),
+            ("custom", "Custom", ""),
         ],
         default="ambient_occlusion",
-        update=_update_target_type,
+        update=_update_pass_type,
     )
     ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
@@ -84,6 +86,10 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
 
     curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     curvature_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
+    normal_curv_radius: bpy.props.IntProperty(name="Radius (px)", default=2, min=1, max=8)
+    normal_curv_strength: bpy.props.FloatProperty(name="Strength", default=1.0, min=0.0, max=4.0)
+    normal_curv_contrast: bpy.props.FloatProperty(name="Contrast", default=0.2, min=0.0, max=1.0)
+    normal_curv_invert: bpy.props.BoolProperty(name="Invert", default=False)
 
     thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
@@ -157,14 +163,15 @@ class BakeryBakeTargetItem(bpy.types.PropertyGroup):
 
 
 class BakeryTextureSet(bpy.types.PropertyGroup):
-    # group bake targets and their settings per texture set for overrides.
+    # group bake passes and their settings per texture set for overrides.
     name: bpy.props.StringProperty(name="Name", default="Texture Set")
     enabled: bpy.props.BoolProperty(name="Enabled", default=True)
-    low_polys: bpy.props.CollectionProperty(type=BakeryLowPolyItem)
-    active_low_index: bpy.props.IntProperty(default=-1)
+    target_meshes: bpy.props.CollectionProperty(type=BakeryTargetMeshItem)
+    active_target_index: bpy.props.IntProperty(default=-1)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
     override_resolution: bpy.props.BoolProperty(name="Resolution", default=False)
     override_dilation: bpy.props.BoolProperty(name="Padding", default=False)
+    override_fxaa: bpy.props.BoolProperty(name="FXAA", default=False)
     override_msaa: bpy.props.BoolProperty(name="MSAA", default=False)
     size: bpy.props.IntVectorProperty(
         name="Resolution",
@@ -174,8 +181,21 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
         subtype="NONE",
     )
     set_dilation: bpy.props.IntProperty(name="Padding (px)", default=4, min=0)
+    set_fxaa_enabled: bpy.props.BoolProperty(name="FXAA", default=False)
+    set_fxaa_threshold: bpy.props.FloatProperty(
+        name="Threshold",
+        default=0.1,
+        min=0.0,
+        max=1.0,
+    )
+    set_fxaa_blend: bpy.props.FloatProperty(
+        name="Blend",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+    )
     set_msaa: bpy.props.EnumProperty(
-        name="Anti-Aliasing",
+        name="MSAA",
         items=[
             ("NONE", "None", ""),
             ("2", "MSAA x2", ""),
@@ -184,8 +204,8 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
         ],
         default="NONE",
     )
-    override_bake_targets: bpy.props.BoolProperty(name="Override Bake Targets", default=False)
-    bake_target_mode: bpy.props.EnumProperty(
+    override_bake_passes: bpy.props.BoolProperty(name="Override Bake Passes", default=False)
+    bake_pass_mode: bpy.props.EnumProperty(
         name="Mode",
         items=[
             ("ADD", "Add", ""),
@@ -193,8 +213,8 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
         ],
         default="ADD",
     )
-    bake_targets: bpy.props.CollectionProperty(type=BakeryBakeTargetItem)
-    active_bake_target_index: bpy.props.IntProperty(default=-1)
+    bake_passes: bpy.props.CollectionProperty(type=BakeryBakePassItem)
+    active_bake_pass_index: bpy.props.IntProperty(default=-1)
 
 
 class BakeryStringItem(bpy.types.PropertyGroup):

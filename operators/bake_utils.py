@@ -17,10 +17,11 @@ _BAKE_MODE_MAP = {
     "color_attribute": "color_attribute",
     "bakery_position": "bakery_position",
 }
-_TARGET_LABELS = {
+_BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
+    "curvature_from_normal": "curvature_from_normal",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -281,6 +282,7 @@ def _make_image(name, width, height):
     # Reuse existing images by name to avoid duplicates.
     image = bpy.data.images.get(name)
     if image:
+        image.source = "GENERATED"
         if image.size[0] != width or image.size[1] != height:
             try:
                 image.scale(width, height)
@@ -296,11 +298,22 @@ def _make_image(name, width, height):
 # clear the image pixels so the bake starts empty.
 def _clear_image(image):
     # clear pixels manually to avoid baking over old data.
+    image.source = "GENERATED"
     pixel_count = image.size[0] * image.size[1] * 4
-    image.pixels.foreach_set([0.0] * pixel_count)
-    image.update()
+    try:
+        image.pixels.foreach_set([0.0] * pixel_count)
+        image.update()
+    except RuntimeError:
+        try:
+            image.scale(image.size[0], image.size[1])
+            image.pixels.foreach_set([0.0] * pixel_count)
+            image.update()
+        except RuntimeError:
+            pass
 
 from .dilation import _dilate_image
+from .fxaa import _apply_fxaa
+from .curvature import _normal_to_curvature
 
 # save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
@@ -360,29 +373,29 @@ def _relative_to_blend(path):
     relative = relative.lstrip("\\/")
     return f"/{relative}" if relative else ""
 
-# list bake targets in the order to process them.
-def _collect_bake_targets(data, tex_set):
+# list bake passes in the order to process them.
+def _collect_bake_passes(data, tex_set):
     # build the final target list (global + optional set override).
-    global_targets = [item for item in data.global_bake_targets if item.enabled]
-    set_targets = [item for item in tex_set.bake_targets if item.enabled] if tex_set else []
+    global_targets = [item for item in data.global_bake_passes if item.enabled]
+    set_targets = [item for item in tex_set.bake_passes if item.enabled] if tex_set else []
     if set_targets:
-        if tex_set.bake_target_mode == "REPLACE":
+        if tex_set.bake_pass_mode == "REPLACE":
             return set_targets
         return global_targets + set_targets
     return global_targets
 
 
 # choose a display name for a target item.
-def _target_display_name(item):
+def _pass_display_name(item):
     name = (item.name or "").strip()
     if name:
         return name
-    return _TARGET_LABELS.get(item.target_type, item.target_type)
+    return _BAKE_PASS_LABELS.get(item.pass_type, item.pass_type)
 
 
 # build the final texture name from set + target name.
-def _target_texture_name(tex_set, item):
-    target_name = _target_display_name(item)
+def _pass_texture_name(tex_set, item):
+    target_name = _pass_display_name(item)
     if not target_name:
         return tex_set.name
     prefs = _get_addon_prefs(bpy.context)
@@ -427,9 +440,9 @@ def _copy_color_attribute_material(base_material, attribute_name, cache, created
     return material_copy
 
 # set bake mode and samples for the current target.
-def _prepare_bake_target(item, material, cycles, bake):
+def _prepare_bake_pass(item, material, cycles, bake):
     # configure Cycles bake settings and the shared material for the target.
-    target_name = item.target_type
+    target_name = item.pass_type
     if target_name == "normal":
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
@@ -437,6 +450,14 @@ def _prepare_bake_target(item, material, cycles, bake):
         bake.normal_r = item.normal_r
         bake.normal_g = item.normal_g
         bake.normal_b = item.normal_b
+        return False
+    if target_name == "curvature_from_normal":
+        cycles.samples = 1
+        cycles.bake_type = "NORMAL"
+        bake.normal_space = "TANGENT"
+        bake.normal_r = "POS_X"
+        bake.normal_g = "POS_Y"
+        bake.normal_b = "POS_Z"
         return False
     if target_name == "position":
         cycles.samples = 1
@@ -476,6 +497,14 @@ def _effective_settings(data, tex_set):
         dilation = tex_set.set_dilation
     else:
         dilation = data.global_dilation
+    if tex_set.override_fxaa:
+        fxaa_enabled = tex_set.set_fxaa_enabled
+        fxaa_threshold = tex_set.set_fxaa_threshold
+        fxaa_blend = tex_set.set_fxaa_blend
+    else:
+        fxaa_enabled = data.global_fxaa_enabled
+        fxaa_threshold = data.global_fxaa_threshold
+        fxaa_blend = data.global_fxaa_blend
     if tex_set.override_msaa:
         msaa = tex_set.set_msaa
     else:
@@ -485,6 +514,9 @@ def _effective_settings(data, tex_set):
         "dilation": dilation,
         "dilation_method": data.global_dilation_method,
         "msaa": msaa,
+        "fxaa_enabled": fxaa_enabled,
+        "fxaa_threshold": fxaa_threshold,
+        "fxaa_blend": fxaa_blend,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
         "output_color_depth": data.output_color_depth,
@@ -579,14 +611,14 @@ def _bake_texture_sets(operator, context, texture_sets, label):
         operator.report({"WARNING"}, "Missing source material")
         return False
 
-    if not any(ts.low_polys for ts in texture_sets):
+    if not any(ts.target_meshes for ts in texture_sets):
         _popup_error(context, "Please add at least one target object")
         operator.report({"WARNING"}, "Please add at least one target object")
         return False
 
-    if not any(_collect_bake_targets(data, ts) for ts in texture_sets):
-        _popup_error(context, "Please enable at least one bake target")
-        operator.report({"WARNING"}, "Please enable at least one bake target")
+    if not any(_collect_bake_passes(data, ts) for ts in texture_sets):
+        _popup_error(context, "Please enable at least one bake pass")
+        operator.report({"WARNING"}, "Please enable at least one bake pass")
         return False
 
     prefs = _get_addon_prefs(context)
@@ -611,7 +643,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     saved = _capture_scene_settings(scene)
     data.is_baking = True
     data.baking_set_name = ""
-    data.baking_target_name = ""
+    data.baking_pass_name = ""
     data.baking_progress = 0.0
     data.last_bake_duration = ""
     data.show_last_bake = False
@@ -619,6 +651,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     created_materials = []
     created_node_groups = []
     baked_texture_names = set()
+    baked_texture_times = {}
     start_time = time.perf_counter()
     cleared_images = set()
     _debug_log(context, f"{label} started for {len(texture_sets)} texture set(s)")
@@ -626,7 +659,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     # Pre-calculate total target count for a simple progress bar.
     total_targets = 0
     for tex_set in texture_sets:
-        total_targets += len(_collect_bake_targets(data, tex_set))
+        total_targets += len(_collect_bake_passes(data, tex_set))
     progress_value = 0
     progress_total = max(1, total_targets)
     wm = getattr(context, "window_manager", None)
@@ -638,7 +671,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
         for tex_set in texture_sets:
             settings = _effective_settings(data, tex_set)
             _debug_log(context, f"Preparing texture set '{tex_set.name}'")
-            if not tex_set.low_polys:
+            if not tex_set.target_meshes:
                 _debug_log(context, f"Skipping texture set '{tex_set.name}' (no targets)")
                 continue
             data.baking_set_name = tex_set.name
@@ -646,11 +679,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
             saved_materials = {}
             color_attribute_materials = {}
             set_high_objs = []
-            for low_item in tex_set.low_polys:
+            for low_item in tex_set.target_meshes:
                 low_obj = low_item.object
                 if low_obj and low_obj.type == "MESH":
                     saved_materials.setdefault(low_obj, _capture_materials(low_obj))
-                for high_item in low_item.high_polys:
+                for high_item in low_item.source_meshes:
                     high_obj = high_item.object
                     if not high_obj or high_obj.type != "MESH":
                         continue
@@ -661,29 +694,31 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
             # MSAA is implemented by baking at a higher resolution and downscaling.
             scale_factor = _msaa_factor(settings["msaa"])
+            use_fxaa = settings["fxaa_enabled"]
             target_resolution = settings["resolution"]
             bake_resolution = (
                 target_resolution[0] * scale_factor,
                 target_resolution[1] * scale_factor,
             )
-            targets = _collect_bake_targets(data, tex_set)
+            targets = _collect_bake_passes(data, tex_set)
             for item in targets:
-                target_name = item.target_type
+                target_name = item.pass_type
+                pass_start = time.perf_counter()
 
                 progress_value += 1
                 if wm:
                     wm.progress_update(progress_value)
-                target_label = _target_display_name(item)
-                data.baking_target_name = target_label
+                target_label = _pass_display_name(item)
+                data.baking_pass_name = target_label
                 data.baking_progress = progress_value / progress_total
                 _progress(operator, context, f"{label}: {tex_set.name} - {target_label}")
 
                 if target_name == "custom" and not item.custom_material:
-                    _popup_error(context, "Custom bake target needs a material")
-                    operator.report({"WARNING"}, "Custom bake target needs a material")
+                    _popup_error(context, "Custom bake pass needs a material")
+                    operator.report({"WARNING"}, "Custom bake pass needs a material")
                     continue
 
-                texture_name = _target_texture_name(tex_set, item)
+                texture_name = _pass_texture_name(tex_set, item)
                 image = _make_image(texture_name, bake_resolution[0], bake_resolution[1])
                 if image.name not in cleared_images:
                     _clear_image(image)
@@ -691,7 +726,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 bake.use_clear = False
                 baked_texture_names.add(texture_name)
 
-                needs_material_settings = _prepare_bake_target(
+                needs_material_settings = _prepare_bake_pass(
                     item,
                     material,
                     cycles,
@@ -726,13 +761,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     for high_obj in set_high_objs:
                         _ensure_material_slot(high_obj, item.custom_material)
 
-                for low_item in tex_set.low_polys:
+                for low_item in tex_set.target_meshes:
                     low_obj = low_item.object
                     if not low_obj or low_obj.type != "MESH":
                         continue
 
                     high_items = [
-                        item for item in low_item.high_polys
+                        item for item in low_item.source_meshes
                         if item.object and item.object.type == "MESH"
                     ]
                     high_objs = [item.object for item in high_items]
@@ -846,6 +881,22 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if dilation > 0:
                     _dilate_image(image, dilation, settings["dilation_method"])
                     _debug_log(context, f"Applied dilation of {dilation}px")
+                if target_name == "curvature_from_normal":
+                    _normal_to_curvature(
+                        image,
+                        radius=item.normal_curv_radius,
+                        strength=item.normal_curv_strength,
+                        contrast=item.normal_curv_contrast,
+                        invert=item.normal_curv_invert,
+                    )
+                    _debug_log(context, "Converted normal map to curvature")
+                if use_fxaa:
+                    _apply_fxaa(
+                        image,
+                        threshold=settings["fxaa_threshold"],
+                        blend=settings["fxaa_blend"],
+                    )
+                    _debug_log(context, "Applied FXAA")
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
                     _debug_log(
@@ -862,13 +913,14 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     scene=scene,
                     context=context,
                 )
+                baked_texture_times[texture_name] = time.perf_counter() - pass_start
 
             for obj, mats in saved_materials.items():
                 _restore_materials(obj, mats)
     finally:
         data.is_baking = False
         data.baking_set_name = ""
-        data.baking_target_name = ""
+        data.baking_pass_name = ""
         data.baking_progress = 0.0
         _tag_redraw(context)
         # always clean up progress bars and any temporary data.
@@ -915,10 +967,18 @@ def _bake_texture_sets(operator, context, texture_sets, label):
     data.last_bake_textures.clear()
     for name in sorted(baked_texture_names):
         entry = data.last_bake_textures.add()
-        entry.value = name
+        duration = baked_texture_times.get(name)
+        if duration is None:
+            entry.value = name
+        else:
+            entry.value = f"{name} ({duration:.2f}s)"
     message = f"{label} finished in {elapsed:.2f}s"
     print(f"Bakery: {message}")
     operator.report({"INFO"}, message)
     return True
+
+
+
+
 
 

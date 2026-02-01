@@ -1,9 +1,9 @@
 import bpy
 
 from .items import (
-    BakeryHighPolyItem,
-    BakeryLowPolyItem,
-    BakeryBakeTargetItem,
+    BakerySourceMeshItem,
+    BakeryTargetMeshItem,
+    BakeryBakePassItem,
     BakeryTextureSet,
     BakeryStringItem,
 )
@@ -12,9 +12,9 @@ from .defaults import _ensure_defaults_all, _deferred_defaults, _on_load
 
 
 classes = (
-    BakeryHighPolyItem,
-    BakeryLowPolyItem,
-    BakeryBakeTargetItem,
+    BakerySourceMeshItem,
+    BakeryTargetMeshItem,
+    BakeryBakePassItem,
     BakeryTextureSet,
     BakeryStringItem,
     BakeryData,

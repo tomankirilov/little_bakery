@@ -11,32 +11,32 @@ class BAKERY_UL_texture_sets(bpy.types.UIList):
         row.prop(item, "name", text="", emboss=False)
 
 
-class BAKERY_UL_low_polys(bpy.types.UIList):
+class BAKERY_UL_target_meshes(bpy.types.UIList):
     # draw each target row.
     # expose a quick select button and an object search per row.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
         op.object_name = item.object.name if item.object else ""
-        op.list_kind = "LOW"
+        op.list_kind = "TARGET"
         op.item_index = index
         row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
 
 
-class BAKERY_UL_high_polys(bpy.types.UIList):
+class BAKERY_UL_source_meshes(bpy.types.UIList):
     # draw each source row.
-    # Sources mirror the targets list layout for consistency.
+    # Sources mirror the target meshes list layout for consistency.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         op = row.operator("bakery.select_object", text="", icon="MESH_DATA", emboss=False)
         op.object_name = item.object.name if item.object else ""
-        op.list_kind = "HIGH"
+        op.list_kind = "SOURCE"
         op.item_index = index
         row.prop_search(item, "object", context.scene, "objects", text="", icon="VIEWZOOM")
 
 
-class BAKERY_UL_bake_targets(bpy.types.UIList):
-    # draw each bake target row.
+class BAKERY_UL_bake_passes(bpy.types.UIList):
+    # draw each bake pass row.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         row.prop(item, "enabled", text="")

@@ -65,10 +65,10 @@ class BAKERY_OT_texture_set_move_down(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class BAKERY_OT_low_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_add"
-    bl_label = "Add Target"
-    bl_description = "Add a target entry to the selected texture set"
+class BAKERY_OT_target_mesh_add(bpy.types.Operator):
+    bl_idname = "bakery.target_mesh_add"
+    bl_label = "Add Target Mesh"
+    bl_description = "Add a target mesh entry to the selected texture set"
 
     # add selected objects to the target list.
     def execute(self, context):
@@ -82,23 +82,23 @@ class BAKERY_OT_low_poly_add(bpy.types.Operator):
             if obj.type not in _GEOMETRY_SKIP_TYPES
         ]
         if selected:
-            existing = {item.object for item in tex_set.low_polys if item.object}
+            existing = {item.object for item in tex_set.target_meshes if item.object}
             for obj in selected:
                 if obj in existing:
                     continue
-                item = tex_set.low_polys.add()
+                item = tex_set.target_meshes.add()
                 item.object = obj
-            tex_set.active_low_index = max(0, len(tex_set.low_polys) - 1)
+            tex_set.active_target_index = max(0, len(tex_set.target_meshes) - 1)
         else:
-            tex_set.low_polys.add()
-            tex_set.active_low_index = len(tex_set.low_polys) - 1
+            tex_set.target_meshes.add()
+            tex_set.active_target_index = len(tex_set.target_meshes) - 1
         return {"FINISHED"}
 
 
-class BAKERY_OT_low_poly_remove(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_remove"
-    bl_label = "Remove Target"
-    bl_description = "Remove the selected target entry"
+class BAKERY_OT_target_mesh_remove(bpy.types.Operator):
+    bl_idname = "bakery.target_mesh_remove"
+    bl_label = "Remove Target Mesh"
+    bl_description = "Remove the selected target mesh entry"
 
     # remove the active target entry.
     def execute(self, context):
@@ -107,18 +107,18 @@ class BAKERY_OT_low_poly_remove(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        index = tex_set.active_low_index
-        if 0 <= index < len(tex_set.low_polys):
-            tex_set.low_polys.remove(index)
-            if tex_set.low_polys:
-                tex_set.active_low_index = min(index, len(tex_set.low_polys) - 1)
+        index = tex_set.active_target_index
+        if 0 <= index < len(tex_set.target_meshes):
+            tex_set.target_meshes.remove(index)
+            if tex_set.target_meshes:
+                tex_set.active_target_index = min(index, len(tex_set.target_meshes) - 1)
             else:
-                tex_set.active_low_index = -1
+                tex_set.active_target_index = -1
         return {"FINISHED"}
 
 
-class BAKERY_OT_low_poly_move_up(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_move_up"
+class BAKERY_OT_target_mesh_move_up(bpy.types.Operator):
+    bl_idname = "bakery.target_mesh_move_up"
     bl_label = "Move Target Up"
     bl_description = "Move the selected target up"
 
@@ -127,15 +127,15 @@ class BAKERY_OT_low_poly_move_up(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        index = tex_set.active_low_index
+        index = tex_set.active_target_index
         if index > 0:
-            tex_set.low_polys.move(index, index - 1)
-            tex_set.active_low_index = index - 1
+            tex_set.target_meshes.move(index, index - 1)
+            tex_set.active_target_index = index - 1
         return {"FINISHED"}
 
 
-class BAKERY_OT_low_poly_move_down(bpy.types.Operator):
-    bl_idname = "bakery.low_poly_move_down"
+class BAKERY_OT_target_mesh_move_down(bpy.types.Operator):
+    bl_idname = "bakery.target_mesh_move_down"
     bl_label = "Move Target Down"
     bl_description = "Move the selected target down"
 
@@ -144,17 +144,17 @@ class BAKERY_OT_low_poly_move_down(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        index = tex_set.active_low_index
-        if 0 <= index < len(tex_set.low_polys) - 1:
-            tex_set.low_polys.move(index, index + 1)
-            tex_set.active_low_index = index + 1
+        index = tex_set.active_target_index
+        if 0 <= index < len(tex_set.target_meshes) - 1:
+            tex_set.target_meshes.move(index, index + 1)
+            tex_set.active_target_index = index + 1
         return {"FINISHED"}
 
 
-class BAKERY_OT_high_poly_add(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_add"
-    bl_label = "Add Source"
-    bl_description = "Add a source entry to the selected target"
+class BAKERY_OT_source_mesh_add(bpy.types.Operator):
+    bl_idname = "bakery.source_mesh_add"
+    bl_label = "Add Source Mesh"
+    bl_description = "Add a source mesh entry to the selected target mesh"
 
     # add selected objects to the source list.
     def execute(self, context):
@@ -163,31 +163,31 @@ class BAKERY_OT_high_poly_add(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
+        if not tex_set.target_meshes or tex_set.active_target_index < 0:
             return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
+        target_item = tex_set.target_meshes[tex_set.active_target_index]
         selected = [
             obj for obj in context.selected_objects
             if obj.type not in _GEOMETRY_SKIP_TYPES
         ]
         if selected:
-            existing = {item.object for item in low_item.high_polys if item.object}
+            existing = {item.object for item in target_item.source_meshes if item.object}
             for obj in selected:
                 if obj in existing:
                     continue
-                item = low_item.high_polys.add()
+                item = target_item.source_meshes.add()
                 item.object = obj
-            low_item.active_high_index = max(0, len(low_item.high_polys) - 1)
+            target_item.active_source_index = max(0, len(target_item.source_meshes) - 1)
         else:
-            low_item.high_polys.add()
-            low_item.active_high_index = len(low_item.high_polys) - 1
+            target_item.source_meshes.add()
+            target_item.active_source_index = len(target_item.source_meshes) - 1
         return {"FINISHED"}
 
 
-class BAKERY_OT_high_poly_remove(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_remove"
-    bl_label = "Remove Source"
-    bl_description = "Remove the selected source entry"
+class BAKERY_OT_source_mesh_remove(bpy.types.Operator):
+    bl_idname = "bakery.source_mesh_remove"
+    bl_label = "Remove Source Mesh"
+    bl_description = "Remove the selected source mesh entry"
 
     # remove the active source entry.
     def execute(self, context):
@@ -196,21 +196,21 @@ class BAKERY_OT_high_poly_remove(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
+        if not tex_set.target_meshes or tex_set.active_target_index < 0:
             return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
-        index = low_item.active_high_index
-        if 0 <= index < len(low_item.high_polys):
-            low_item.high_polys.remove(index)
-            if low_item.high_polys:
-                low_item.active_high_index = min(index, len(low_item.high_polys) - 1)
+        target_item = tex_set.target_meshes[tex_set.active_target_index]
+        index = target_item.active_source_index
+        if 0 <= index < len(target_item.source_meshes):
+            target_item.source_meshes.remove(index)
+            if target_item.source_meshes:
+                target_item.active_source_index = min(index, len(target_item.source_meshes) - 1)
             else:
-                low_item.active_high_index = -1
+                target_item.active_source_index = -1
         return {"FINISHED"}
 
 
-class BAKERY_OT_high_poly_move_up(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_move_up"
+class BAKERY_OT_source_mesh_move_up(bpy.types.Operator):
+    bl_idname = "bakery.source_mesh_move_up"
     bl_label = "Move Source Up"
     bl_description = "Move the selected source up"
 
@@ -219,18 +219,18 @@ class BAKERY_OT_high_poly_move_up(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
+        if not tex_set.target_meshes or tex_set.active_target_index < 0:
             return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
-        index = low_item.active_high_index
+        target_item = tex_set.target_meshes[tex_set.active_target_index]
+        index = target_item.active_source_index
         if index > 0:
-            low_item.high_polys.move(index, index - 1)
-            low_item.active_high_index = index - 1
+            target_item.source_meshes.move(index, index - 1)
+            target_item.active_source_index = index - 1
         return {"FINISHED"}
 
 
-class BAKERY_OT_high_poly_move_down(bpy.types.Operator):
-    bl_idname = "bakery.high_poly_move_down"
+class BAKERY_OT_source_mesh_move_down(bpy.types.Operator):
+    bl_idname = "bakery.source_mesh_move_down"
     bl_label = "Move Source Down"
     bl_description = "Move the selected source down"
 
@@ -239,13 +239,13 @@ class BAKERY_OT_high_poly_move_down(bpy.types.Operator):
         if not data.texture_sets or data.active_texture_index < 0:
             return {"CANCELLED"}
         tex_set = data.texture_sets[data.active_texture_index]
-        if not tex_set.low_polys or tex_set.active_low_index < 0:
+        if not tex_set.target_meshes or tex_set.active_target_index < 0:
             return {"CANCELLED"}
-        low_item = tex_set.low_polys[tex_set.active_low_index]
-        index = low_item.active_high_index
-        if 0 <= index < len(low_item.high_polys) - 1:
-            low_item.high_polys.move(index, index + 1)
-            low_item.active_high_index = index + 1
+        target_item = tex_set.target_meshes[tex_set.active_target_index]
+        index = target_item.active_source_index
+        if 0 <= index < len(target_item.source_meshes) - 1:
+            target_item.source_meshes.move(index, index + 1)
+            target_item.active_source_index = index + 1
         return {"FINISHED"}
 
 
@@ -257,8 +257,8 @@ class BAKERY_OT_select_object(bpy.types.Operator):
     object_name: bpy.props.StringProperty()
     list_kind: bpy.props.EnumProperty(
         items=[
-            ("LOW", "Target", ""),
-            ("HIGH", "Source", ""),
+            ("TARGET", "Target Mesh", ""),
+            ("SOURCE", "Source Mesh", ""),
         ]
     )
     item_index: bpy.props.IntProperty()
@@ -267,19 +267,19 @@ class BAKERY_OT_select_object(bpy.types.Operator):
     def invoke(self, context, event):
         # sync list selection and optionally select the object in the scene.
         data = context.scene.bakery_data
-        if self.list_kind == "LOW":
+        if self.list_kind == "TARGET":
             if not data.texture_sets or data.active_texture_index < 0:
                 return {"CANCELLED"}
             tex_set = data.texture_sets[data.active_texture_index]
-            tex_set.active_low_index = self.item_index
-        elif self.list_kind == "HIGH":
+            tex_set.active_target_index = self.item_index
+        elif self.list_kind == "SOURCE":
             if not data.texture_sets or data.active_texture_index < 0:
                 return {"CANCELLED"}
             tex_set = data.texture_sets[data.active_texture_index]
-            if not tex_set.low_polys or tex_set.active_low_index < 0:
+            if not tex_set.target_meshes or tex_set.active_target_index < 0:
                 return {"CANCELLED"}
-            low_item = tex_set.low_polys[tex_set.active_low_index]
-            low_item.active_high_index = self.item_index
+            target_item = tex_set.target_meshes[tex_set.active_target_index]
+            target_item.active_source_index = self.item_index
 
         if not event.ctrl:
             return {"FINISHED"}
@@ -305,8 +305,8 @@ class BAKERY_OT_clear_selection(bpy.types.Operator):
     list_kind: bpy.props.EnumProperty(
         items=[
             ("TEXTURE", "Texture Sets", ""),
-            ("LOW", "Target", ""),
-            ("HIGH", "Source", ""),
+            ("TARGET", "Target Mesh", ""),
+            ("SOURCE", "Source Mesh", ""),
         ]
     )
 
@@ -317,21 +317,22 @@ class BAKERY_OT_clear_selection(bpy.types.Operator):
         if self.list_kind == "TEXTURE":
             data.active_texture_index = -1
             return {"FINISHED"}
-        if self.list_kind == "LOW":
+        if self.list_kind == "TARGET":
             if not data.texture_sets or data.active_texture_index < 0:
                 return {"CANCELLED"}
             tex_set = data.texture_sets[data.active_texture_index]
-            tex_set.active_low_index = -1
+            tex_set.active_target_index = -1
             return {"FINISHED"}
-        if self.list_kind == "HIGH":
+        if self.list_kind == "SOURCE":
             if not data.texture_sets or data.active_texture_index < 0:
                 return {"CANCELLED"}
             tex_set = data.texture_sets[data.active_texture_index]
-            if not tex_set.low_polys or tex_set.active_low_index < 0:
+            if not tex_set.target_meshes or tex_set.active_target_index < 0:
                 return {"CANCELLED"}
-            low_item = tex_set.low_polys[tex_set.active_low_index]
-            low_item.active_high_index = -1
+            target_item = tex_set.target_meshes[tex_set.active_target_index]
+            target_item.active_source_index = -1
             return {"FINISHED"}
         return {"CANCELLED"}
+
 
 
