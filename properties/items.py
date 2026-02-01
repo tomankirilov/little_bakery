@@ -5,6 +5,7 @@ _BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
+    "curvature_from_normal": "curvature_from_normal",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -57,6 +58,7 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
             ("normal", "Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
+            ("curvature_from_normal", "Curvature (Normal)", ""),
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
@@ -84,6 +86,10 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
 
     curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     curvature_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
+    normal_curv_radius: bpy.props.IntProperty(name="Radius (px)", default=2, min=1, max=8)
+    normal_curv_strength: bpy.props.FloatProperty(name="Strength", default=1.0, min=0.0, max=4.0)
+    normal_curv_contrast: bpy.props.FloatProperty(name="Contrast", default=0.2, min=0.0, max=1.0)
+    normal_curv_invert: bpy.props.BoolProperty(name="Invert", default=False)
 
     thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)

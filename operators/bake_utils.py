@@ -21,6 +21,7 @@ _BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
+    "curvature_from_normal": "curvature_from_normal",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -312,6 +313,7 @@ def _clear_image(image):
 
 from .dilation import _dilate_image
 from .fxaa import _apply_fxaa
+from .curvature import _normal_to_curvature
 
 # save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
@@ -448,6 +450,14 @@ def _prepare_bake_pass(item, material, cycles, bake):
         bake.normal_r = item.normal_r
         bake.normal_g = item.normal_g
         bake.normal_b = item.normal_b
+        return False
+    if target_name == "curvature_from_normal":
+        cycles.samples = 1
+        cycles.bake_type = "NORMAL"
+        bake.normal_space = "TANGENT"
+        bake.normal_r = "POS_X"
+        bake.normal_g = "POS_Y"
+        bake.normal_b = "POS_Z"
         return False
     if target_name == "position":
         cycles.samples = 1
@@ -869,13 +879,15 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 if dilation > 0:
                     _dilate_image(image, dilation, settings["dilation_method"])
                     _debug_log(context, f"Applied dilation of {dilation}px")
-                if scale_factor > 1:
-                    image.scale(target_resolution[0], target_resolution[1])
-                    _debug_log(
-                        context,
-                        f"Downscaled from {bake_resolution[0]}x{bake_resolution[1]} "
-                        f"to {target_resolution[0]}x{target_resolution[1]}",
+                if target_name == "curvature_from_normal":
+                    _normal_to_curvature(
+                        image,
+                        radius=item.normal_curv_radius,
+                        strength=item.normal_curv_strength,
+                        contrast=item.normal_curv_contrast,
+                        invert=item.normal_curv_invert,
                     )
+                    _debug_log(context, "Converted normal map to curvature")
                 if use_fxaa:
                     _apply_fxaa(
                         image,
@@ -883,6 +895,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         blend=settings["fxaa_blend"],
                     )
                     _debug_log(context, "Applied FXAA")
+                if scale_factor > 1:
+                    image.scale(target_resolution[0], target_resolution[1])
+                    _debug_log(
+                        context,
+                        f"Downscaled from {bake_resolution[0]}x{bake_resolution[1]} "
+                        f"to {target_resolution[0]}x{target_resolution[1]}",
+                    )
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,

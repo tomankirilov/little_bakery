@@ -48,6 +48,11 @@ def _draw_bake_pass_settings(layout, item):
     elif item.pass_type == "curvature":
         layout.prop(item, "curvature_exponent")
         layout.prop(item, "curvature_contrast")
+    elif item.pass_type == "curvature_from_normal":
+        layout.prop(item, "normal_curv_radius")
+        layout.prop(item, "normal_curv_strength")
+        layout.prop(item, "normal_curv_contrast")
+        layout.prop(item, "normal_curv_invert")
     elif item.pass_type == "thickness":
         layout.prop(item, "thickness_samples")
         layout.prop(item, "thickness_render_samples")
