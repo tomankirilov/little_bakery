@@ -311,6 +311,7 @@ def _clear_image(image):
             pass
 
 from .dilation import _dilate_image
+from .fxaa import _apply_fxaa
 
 # save the baked image using the chosen output settings.
 def _save_image(image, output_dir, filename, settings, scene=None, context=None):
@@ -486,6 +487,14 @@ def _effective_settings(data, tex_set):
         dilation = tex_set.set_dilation
     else:
         dilation = data.global_dilation
+    if tex_set.override_fxaa:
+        fxaa_enabled = tex_set.set_fxaa_enabled
+        fxaa_threshold = tex_set.set_fxaa_threshold
+        fxaa_blend = tex_set.set_fxaa_blend
+    else:
+        fxaa_enabled = data.global_fxaa_enabled
+        fxaa_threshold = data.global_fxaa_threshold
+        fxaa_blend = data.global_fxaa_blend
     if tex_set.override_msaa:
         msaa = tex_set.set_msaa
     else:
@@ -495,6 +504,9 @@ def _effective_settings(data, tex_set):
         "dilation": dilation,
         "dilation_method": data.global_dilation_method,
         "msaa": msaa,
+        "fxaa_enabled": fxaa_enabled,
+        "fxaa_threshold": fxaa_threshold,
+        "fxaa_blend": fxaa_blend,
         "output_format": data.output_format,
         "output_color_mode": data.output_color_mode,
         "output_color_depth": data.output_color_depth,
@@ -671,6 +683,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
 
             # MSAA is implemented by baking at a higher resolution and downscaling.
             scale_factor = _msaa_factor(settings["msaa"])
+            use_fxaa = settings["fxaa_enabled"]
             target_resolution = settings["resolution"]
             bake_resolution = (
                 target_resolution[0] * scale_factor,
@@ -863,6 +876,13 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         f"Downscaled from {bake_resolution[0]}x{bake_resolution[1]} "
                         f"to {target_resolution[0]}x{target_resolution[1]}",
                     )
+                if use_fxaa:
+                    _apply_fxaa(
+                        image,
+                        threshold=settings["fxaa_threshold"],
+                        blend=settings["fxaa_blend"],
+                    )
+                    _debug_log(context, "Applied FXAA")
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,

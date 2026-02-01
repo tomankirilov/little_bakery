@@ -61,8 +61,21 @@ class BakeryData(bpy.types.PropertyGroup):
         ],
         default="CPU",
     )
+    global_fxaa_enabled: bpy.props.BoolProperty(name="FXAA", default=False)
+    global_fxaa_threshold: bpy.props.FloatProperty(
+        name="Threshold",
+        default=0.1,
+        min=0.0,
+        max=1.0,
+    )
+    global_fxaa_blend: bpy.props.FloatProperty(
+        name="Blend",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+    )
     global_msaa: bpy.props.EnumProperty(
-        name="Anti-Aliasing",
+        name="MSAA",
         items=[
             ("NONE", "None", ""),
             ("2", "MSAA x2", ""),

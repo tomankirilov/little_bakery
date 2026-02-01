@@ -281,12 +281,6 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 _draw_resolution_row(render_col, data, "global_resolution")
                 render_col.separator(factor=0.3)
 
-                row = render_col.split(factor=0.4, align=True)
-                row.label(text="Anti-Aliasing")
-                row.prop(data, "global_msaa", text="")
-
-                render_col.separator(factor=0.4)
-
                 pad_label = render_col.row(align=True)
                 pad_label.label(text="Padding")
                 pad_col = _indent_column(render_col)
@@ -295,6 +289,25 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 row.label(text="Method")
                 row.prop(data, "global_dilation_method", text="")
                 pad_col.prop(data, "global_dilation")
+
+                render_col.separator(factor=0.4)
+
+                aa_label = render_col.row(align=True)
+                aa_label.label(text="Anti-Aliasing")
+                aa_col = _indent_column(render_col)
+
+                fxaa_row = aa_col.row(align=True)
+                fxaa_row.prop(data, "global_fxaa_enabled", text="FXAA")
+                if data.global_fxaa_enabled:
+                    fxaa_opts = _indent_column(aa_col)
+                    fxaa_opts.prop(data, "global_fxaa_threshold")
+                    fxaa_opts.prop(data, "global_fxaa_blend")
+
+                aa_col.separator(factor=0.3)
+
+                msaa_row = aa_col.split(factor=0.4, align=True)
+                msaa_row.label(text="MSAA")
+                msaa_row.prop(data, "global_msaa", text="")
 
             sections.separator(factor=0.4)
 
@@ -449,11 +462,27 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     dilation_row.prop(tex_set, "set_dilation", text="Padding (px)")
                     set_col.separator(factor=0.3)
                     row = set_col.row(align=True)
+                    row.label(text="Anti-Aliasing")
+                    aa_col = _indent_column(set_col)
+
+                    row = aa_col.row(align=True)
+                    row.prop(tex_set, "override_fxaa", text="")
+                    fxaa_row = row.row(align=True)
+                    fxaa_row.enabled = tex_set.override_fxaa
+                    fxaa_row.prop(tex_set, "set_fxaa_enabled", text="FXAA")
+                    if tex_set.override_fxaa and tex_set.set_fxaa_enabled:
+                        fxaa_opts = _indent_column(aa_col)
+                        fxaa_opts.prop(tex_set, "set_fxaa_threshold")
+                        fxaa_opts.prop(tex_set, "set_fxaa_blend")
+
+                    aa_col.separator(factor=0.3)
+
+                    row = aa_col.row(align=True)
                     row.prop(tex_set, "override_msaa", text="")
                     msaa_row = row.row(align=True)
                     msaa_row.enabled = tex_set.override_msaa
                     msaa_split = msaa_row.split(factor=0.4, align=True)
-                    msaa_split.label(text="Anti-Aliasing")
+                    msaa_split.label(text="MSAA")
                     msaa_split.prop(tex_set, "set_msaa", text="")
 
                 row = box.row(align=True)

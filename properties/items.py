@@ -165,6 +165,7 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
     override_resolution: bpy.props.BoolProperty(name="Resolution", default=False)
     override_dilation: bpy.props.BoolProperty(name="Padding", default=False)
+    override_fxaa: bpy.props.BoolProperty(name="FXAA", default=False)
     override_msaa: bpy.props.BoolProperty(name="MSAA", default=False)
     size: bpy.props.IntVectorProperty(
         name="Resolution",
@@ -174,8 +175,21 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
         subtype="NONE",
     )
     set_dilation: bpy.props.IntProperty(name="Padding (px)", default=4, min=0)
+    set_fxaa_enabled: bpy.props.BoolProperty(name="FXAA", default=False)
+    set_fxaa_threshold: bpy.props.FloatProperty(
+        name="Threshold",
+        default=0.1,
+        min=0.0,
+        max=1.0,
+    )
+    set_fxaa_blend: bpy.props.FloatProperty(
+        name="Blend",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+    )
     set_msaa: bpy.props.EnumProperty(
-        name="Anti-Aliasing",
+        name="MSAA",
         items=[
             ("NONE", "None", ""),
             ("2", "MSAA x2", ""),
