@@ -368,6 +368,12 @@ class BAKERY_PT_tools(bpy.types.Panel):
             header.label(text="Projection")
             if data.show_render_cage:
                 cage_col = _indent_column(sections)
+                uv_row = cage_col.row(align=True)
+                uv_row.prop(data, "override_uv_map", text="")
+                uv_map_row = uv_row.row(align=True)
+                uv_map_row.enabled = data.override_uv_map
+                uv_map_row.prop(data, "uv_map_name", text="UV Map")
+                cage_col.separator(factor=0.2)
                 cage_col.prop(data, "global_extrusion")
                 cage_col.prop(data, "global_max_ray_distance", text="Max Ray Distance")
 
@@ -431,6 +437,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
             col = row.column(align=True)
             col.operator("bakery.texture_set_add", icon="ADD", text="")
             col.operator("bakery.texture_set_remove", icon="REMOVE", text="")
+            col.operator("bakery.texture_set_duplicate", icon="DUPLICATE", text="")
             col.separator()
             col.operator("bakery.texture_set_move_up", icon="TRIA_UP", text="")
             col.operator("bakery.texture_set_move_down", icon="TRIA_DOWN", text="")
@@ -484,6 +491,19 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     msaa_split = msaa_row.split(factor=0.4, align=True)
                     msaa_split.label(text="MSAA")
                     msaa_split.prop(tex_set, "set_msaa", text="")
+
+                row = box.row(align=True)
+                row.prop(
+                    tex_set,
+                    "override_uv_map",
+                    icon="TRIA_DOWN" if tex_set.override_uv_map else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                row.label(text="Override UV Map")
+                if tex_set.override_uv_map:
+                    set_uv_col = _indent_column(box)
+                    set_uv_col.prop(tex_set, "uv_map_name", text="")
 
                 row = box.row(align=True)
                 row.prop(
@@ -574,6 +594,11 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 row.label(text="Override Projection Settings")
                 if low_item.override_global_settings:
                     cage_col = low_box.column(align=True)
+                    uv_row = cage_col.row(align=True)
+                    uv_row.prop(low_item, "override_uv_map", text="")
+                    uv_map_row = uv_row.row(align=True)
+                    uv_map_row.enabled = low_item.override_uv_map
+                    uv_map_row.prop(low_item, "uv_map_name", text="UV Map")
                     cage_row = cage_col.row(align=True)
                     cage_row.prop(low_item, "use_cage", text="")
                     cage_row.label(text="Cage")

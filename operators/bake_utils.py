@@ -250,6 +250,24 @@ def _restore_materials(obj, materials):
     for mat in materials:
         data.materials.append(mat)
 
+
+def _set_active_uv(obj, uv_name=None):
+    data = getattr(obj, "data", None)
+    if not data or not hasattr(data, "uv_layers"):
+        return False
+    uv_layers = data.uv_layers
+    if not uv_layers:
+        return False
+    if uv_name:
+        name = (uv_name or "UVMap").strip() or "UVMap"
+        layer = uv_layers.get(name)
+        if layer is None:
+            return False
+    else:
+        layer = uv_layers.active or uv_layers.get("UVMap") or uv_layers[0]
+    uv_layers.active = layer
+    return True
+
 # set selection and active object for baking.
 def _set_selection(scene, view_layer, objects, active=None):
     # control selection to satisfy Blender's bake requirements.
@@ -767,6 +785,31 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     low_obj = low_item.object
                     if not low_obj or low_obj.type != "MESH":
                         continue
+                    uv_layers = getattr(low_obj.data, "uv_layers", None)
+                    if not uv_layers or not uv_layers:
+                        _popup_error(context, f"{low_obj.name} has no UV maps")
+                        operator.report({"WARNING"}, f"{low_obj.name} has no UV maps")
+                        return False
+                    if low_item.override_uv_map:
+                        requested_uv = (low_item.uv_map_name or "UVMap").strip() or "UVMap"
+                        if not _set_active_uv(low_obj, requested_uv):
+                            _popup_error(context, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            operator.report({"WARNING"}, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            return False
+                    elif tex_set.override_uv_map:
+                        requested_uv = (tex_set.uv_map_name or "UVMap").strip() or "UVMap"
+                        if not _set_active_uv(low_obj, requested_uv):
+                            _popup_error(context, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            operator.report({"WARNING"}, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            return False
+                    elif data.override_uv_map:
+                        requested_uv = (data.uv_map_name or "UVMap").strip() or "UVMap"
+                        if not _set_active_uv(low_obj, requested_uv):
+                            _popup_error(context, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            operator.report({"WARNING"}, f"UV map '{requested_uv}' not found on {low_obj.name}")
+                            return False
+                    else:
+                        _set_active_uv(low_obj, None)
 
                     high_items = [
                         item for item in low_item.source_meshes

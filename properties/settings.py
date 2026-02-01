@@ -146,3 +146,5 @@ class BakeryData(bpy.types.PropertyGroup):
         ],
         default="FAST",
     )
+    override_uv_map: bpy.props.BoolProperty(name="Override UV", default=False)
+    uv_map_name: bpy.props.StringProperty(name="UV Map", default="UVMap")
