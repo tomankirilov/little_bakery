@@ -16,12 +16,14 @@ _BAKE_MODE_MAP = {
     "random_island": "random_island",
     "color_attribute": "color_attribute",
     "bakery_position": "bakery_position",
+    "opacity": "pure_color",
 }
 _BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
     "curvature_from_normal": "curvature_from_normal",
+    "opacity": "opacity",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -131,6 +133,15 @@ def _set_highpoly_material_mode(material, mode):
     if not node or not node.inputs:
         return
     node.inputs[_BAKE_MODE_INPUT_INDEX].default_value = mode
+
+
+def _set_highpoly_pure_color(material, color):
+    if not material or not material.node_tree:
+        return
+    node = material.node_tree.nodes.get(_HIGH_MATERIAL_NODE_NAME)
+    if not node or not node.inputs or len(node.inputs) <= 6:
+        return
+    node.inputs[6].default_value = color
 
 # Set AO/curvature/thickness values into the material nodes.
 def _set_highpoly_material_settings(material, ao_samples, ao_occlusion_mode, ao_distance,
@@ -486,6 +497,11 @@ def _prepare_bake_pass(item, material, cycles, bake):
         cycles.samples = 1
         cycles.bake_type = item.custom_bake_type
         return False
+    if target_name == "opacity":
+        cycles.samples = 1
+        cycles.bake_type = "EMIT"
+        _set_highpoly_material_mode(material, "pure_color")
+        return False
     cycles.bake_type = "EMIT"
     if target_name == "ambient_occlusion":
         cycles.samples = item.ao_render_samples
@@ -773,6 +789,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     "thickness",
                     "random_island",
                     "bakery_position",
+                    "opacity",
                 }
                 if use_bakery_material:
                     for high_obj in set_high_objs:
@@ -811,6 +828,82 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     else:
                         _set_active_uv(low_obj, None)
 
+                    if target_name == "opacity":
+                        # Two-pass opacity: black base on target, then white projection from sources.
+                        _set_highpoly_material_mode(material, "pure_color")
+                        _set_highpoly_pure_color(material, (0.0, 0.0, 0.0, 1.0))
+                        _ensure_material_slot(low_obj, material)
+                        bake.use_clear = False
+
+                        if context.mode != "OBJECT":
+                            bpy.ops.object.mode_set(mode="OBJECT")
+
+                        # Pass 1: target only, fill black.
+                        selected, temp_links, temp_collection = _set_selection(
+                            scene,
+                            view_layer,
+                            [low_obj],
+                            active=low_obj,
+                        )
+                        bake.use_selected_to_active = False
+
+                        material_slot = _ensure_low_material(low_obj)
+                        if not material_slot or not material_slot.node_tree:
+                            continue
+                        nodes = material_slot.node_tree.nodes
+                        image_node = nodes.new("ShaderNodeTexImage")
+                        image_node.image = image
+                        material_slot.node_tree.nodes.active = image_node
+                        try:
+                            override = _get_view3d_override(
+                                scene,
+                                view_layer,
+                                low_obj,
+                                selected,
+                            )
+                            if override:
+                                with bpy.context.temp_override(**override):
+                                    bpy.ops.object.bake(type=cycles.bake_type)
+                            else:
+                                bpy.ops.object.bake(type=cycles.bake_type)
+                        finally:
+                            for obj in temp_links:
+                                if obj.name in temp_collection.objects:
+                                    temp_collection.objects.unlink(obj)
+
+                        # Pass 2: sources to target, overlay white.
+                        if high_objs:
+                            _set_highpoly_pure_color(material, (1.0, 1.0, 1.0, 1.0))
+                            for high_obj in high_objs:
+                                _ensure_material_slot(high_obj, material)
+
+                            selected, temp_links, temp_collection = _set_selection(
+                                scene,
+                                view_layer,
+                                high_objs + [low_obj],
+                                active=low_obj,
+                            )
+                            bake.use_selected_to_active = True
+                            try:
+                                override = _get_view3d_override(
+                                    scene,
+                                    view_layer,
+                                    low_obj,
+                                    selected,
+                                )
+                                if override:
+                                    with bpy.context.temp_override(**override):
+                                        bpy.ops.object.bake(type=cycles.bake_type)
+                                else:
+                                    bpy.ops.object.bake(type=cycles.bake_type)
+                            finally:
+                                for obj in temp_links:
+                                    if obj.name in temp_collection.objects:
+                                        temp_collection.objects.unlink(obj)
+
+                        nodes.remove(image_node)
+                        continue
+
                     high_items = [
                         item for item in low_item.source_meshes
                         if item.object and item.object.type == "MESH"
@@ -845,8 +938,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                             _ensure_material_slot(low_obj, item.custom_material)
                     if target_name == "color_attribute":
                         # Override the source material per-object to inject the attribute name.
-                        for item in high_items:
-                            attr_name = (item.color_attribute or "").strip()
+                        for source_item in high_items:
+                            attr_name = (source_item.color_attribute or "").strip()
                             if not attr_name:
                                 attr_name = "Color"
                             mat = _copy_color_attribute_material(
@@ -856,7 +949,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                 created_materials,
                                 created_node_groups,
                             )
-                            _ensure_material_slot(item.object, mat)
+                            _ensure_material_slot(source_item.object, mat)
                     _debug_log(
                         context,
                         f"Baking {target_label} for target '{low_obj.name}' "
@@ -966,8 +1059,8 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     bake.use_clear = False
                     if target_name == "color_attribute":
                         # Restore the shared material after the color-attribute bake.
-                        for item in high_items:
-                            _ensure_material_slot(item.object, material)
+                        for source_item in high_items:
+                            _ensure_material_slot(source_item.object, material)
 
                 # Hard padding pass (old behavior) before downscaling.
                 dilation = settings["dilation"] * scale_factor
@@ -975,16 +1068,6 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                     _dilate_image(image, dilation, settings["dilation_method"])
                     _debug_log(context, f"Applied dilation of {dilation}px")
                 stage_marks["dilation"] = time.perf_counter()
-                if target_name == "curvature_from_normal":
-                    _normal_to_curvature(
-                        image,
-                        radius=item.normal_curv_radius,
-                        strength=item.normal_curv_strength,
-                        contrast=item.normal_curv_contrast,
-                        invert=item.normal_curv_invert,
-                    )
-                    _debug_log(context, "Converted normal map to curvature")
-                stage_marks["curvature"] = time.perf_counter()
                 if use_fxaa:
                     _apply_fxaa(
                         image,
@@ -1002,7 +1085,17 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         per_channel=item.sharpen_per_channel,
                     )
                     _debug_log(context, "Applied sharpen")
+                if target_name == "curvature_from_normal":
+                    _normal_to_curvature(
+                        image,
+                        radius=item.normal_curv_radius,
+                        strength=item.normal_curv_strength,
+                        contrast=item.normal_curv_contrast,
+                        invert=item.normal_curv_invert,
+                    )
+                    _debug_log(context, "Converted normal map to curvature")
                 stage_marks["fxaa"] = time.perf_counter()
+                stage_marks["curvature"] = stage_marks["fxaa"]
                 if scale_factor > 1:
                     image.scale(target_resolution[0], target_resolution[1])
                     _debug_log(
@@ -1088,6 +1181,11 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                 bpy.data.materials.remove(material, do_unlink=True)
             except RuntimeError:
                 pass
+        try:
+            for obj in context.view_layer.objects:
+                obj.select_set(False)
+        except Exception:
+            pass
 
     elapsed = time.perf_counter() - start_time
     minutes, seconds = divmod(int(elapsed), 60)
