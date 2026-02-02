@@ -5,7 +5,7 @@ _BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
-    "curvature_from_normal": "curvature_from_normal",
+    "opacity": "opacity",
     "thickness": "thickness",
     "position": "position",
     "bakery_position": "bakery_position",
@@ -34,6 +34,8 @@ class BakeryTargetMeshItem(bpy.types.PropertyGroup):
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     source_meshes: bpy.props.CollectionProperty(type=BakerySourceMeshItem)
     active_source_index: bpy.props.IntProperty(default=-1)
+    override_uv_map: bpy.props.BoolProperty(name="Override UV", default=False)
+    uv_map_name: bpy.props.StringProperty(name="UV Map", default="UVMap")
     cage_object: bpy.props.PointerProperty(type=bpy.types.Object)
     use_cage: bpy.props.BoolProperty(name="Cage", default=False)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
@@ -58,7 +60,7 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
             ("normal", "Normal", ""),
             ("ambient_occlusion", "Ambient Occlusion", ""),
             ("curvature", "Curvature", ""),
-            ("curvature_from_normal", "Curvature (Normal)", ""),
+            ("opacity", "Opacity", ""),
             ("thickness", "Thickness", ""),
             ("position", "Position", ""),
             ("bakery_position", "Bakery Position", ""),
@@ -71,10 +73,10 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
     )
     ao_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     ao_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
+    ao_normalize: bpy.props.BoolProperty(name="Normalize", default=False)
     ao_occlusion_mode: bpy.props.EnumProperty(
         name="Mode",
         items=[
-            ("GLOBAL", "Global", "Occlusion from all meshes in the scene"),
             ("SET", "Set", "Occlusion from only the sources in this texture set"),
             ("LOCAL", "Local", "Occlusion from only the sources linked to each target"),
             ("ISOLATED", "Isolated", "Occlusion per source mesh."),
@@ -84,12 +86,21 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
     ao_distance: bpy.props.FloatProperty(name="Distance", default=1.0, min=0.0)
     ao_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
 
+    curvature_mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=[
+            ("MATERIAL", "Material", ""),
+            ("NORMAL", "Normal", ""),
+        ],
+        default="MATERIAL",
+    )
     curvature_exponent: bpy.props.FloatProperty(name="Exponent", default=2.2, min=0.0)
     curvature_contrast: bpy.props.FloatProperty(name="Contrast", default=0.0, min=0.0)
     normal_curv_radius: bpy.props.IntProperty(name="Radius (px)", default=2, min=1, max=8)
     normal_curv_strength: bpy.props.FloatProperty(name="Strength", default=1.0, min=0.0, max=4.0)
     normal_curv_contrast: bpy.props.FloatProperty(name="Contrast", default=0.2, min=0.0, max=1.0)
     normal_curv_invert: bpy.props.BoolProperty(name="Invert", default=False)
+    normal_curv_edge_clamp: bpy.props.FloatProperty(name="Edge Clamp", default=0.05, min=0.0, max=1.0)
 
     thickness_samples: bpy.props.IntProperty(name="Ray Count", default=32, min=1)
     thickness_render_samples: bpy.props.IntProperty(name="Render Samples", default=8, min=1)
@@ -160,6 +171,9 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
         ],
         default="POS_Z",
     )
+    sharpen: bpy.props.BoolProperty(name="Sharpen", default=False)
+    sharpen_amount: bpy.props.FloatProperty(name="Amount", default=0.5, min=0.0, max=2.0)
+    sharpen_per_channel: bpy.props.BoolProperty(name="Per Channel", default=False)
 
 
 class BakeryTextureSet(bpy.types.PropertyGroup):
@@ -169,6 +183,8 @@ class BakeryTextureSet(bpy.types.PropertyGroup):
     target_meshes: bpy.props.CollectionProperty(type=BakeryTargetMeshItem)
     active_target_index: bpy.props.IntProperty(default=-1)
     override_global_settings: bpy.props.BoolProperty(name="Override Global Settings", default=False)
+    override_uv_map: bpy.props.BoolProperty(name="Override UV", default=False)
+    uv_map_name: bpy.props.StringProperty(name="UV Map", default="UVMap")
     override_resolution: bpy.props.BoolProperty(name="Resolution", default=False)
     override_dilation: bpy.props.BoolProperty(name="Padding", default=False)
     override_fxaa: bpy.props.BoolProperty(name="FXAA", default=False)

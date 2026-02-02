@@ -144,5 +144,7 @@ class BakeryData(bpy.types.PropertyGroup):
             ("CHAMFER", "Chamfer", "Chamfer distance spread"),
             ("EDT", "EDT", "True euclidean distance"),
         ],
-        default="FAST",
+        default="EDT",
     )
+    override_uv_map: bpy.props.BoolProperty(name="Override UV", default=False)
+    uv_map_name: bpy.props.StringProperty(name="UV Map", default="UVMap")
