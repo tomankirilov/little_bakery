@@ -47,13 +47,16 @@ def _draw_bake_pass_settings(layout, item):
         row.label(text="Swizzle B")
         row.prop(item, "normal_b", text="")
     elif item.pass_type == "curvature":
-        layout.prop(item, "curvature_exponent")
-        layout.prop(item, "curvature_contrast")
-    elif item.pass_type == "curvature_from_normal":
-        layout.prop(item, "normal_curv_radius")
-        layout.prop(item, "normal_curv_strength")
-        layout.prop(item, "normal_curv_contrast")
-        layout.prop(item, "normal_curv_invert")
+        layout.prop(item, "curvature_mode")
+        if item.curvature_mode == "NORMAL":
+            layout.prop(item, "normal_curv_radius")
+            layout.prop(item, "normal_curv_strength")
+            layout.prop(item, "normal_curv_contrast")
+            layout.prop(item, "normal_curv_edge_clamp")
+            layout.prop(item, "normal_curv_invert")
+        else:
+            layout.prop(item, "curvature_exponent")
+            layout.prop(item, "curvature_contrast")
     elif item.pass_type == "thickness":
         layout.prop(item, "thickness_samples")
         layout.prop(item, "thickness_render_samples")

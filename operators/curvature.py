@@ -1,7 +1,7 @@
 from array import array
 
 
-def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=False):
+def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=False, edge_clamp=1.0):
     # Photoshop-style curvature from RG emboss, multiplied by B.
     width, height = image.size
     if width < 2 or height < 2:
@@ -44,7 +44,14 @@ def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=Fal
 
             dx = pixels[i_r] - pixels[i_l]
             dy = pixels[i_u + 1] - pixels[i_d + 1]
-            curv = 0.5 + (dx + dy) * 0.5 * max(0.0, strength)
+            raw = (dx + dy) * 0.5
+            clamp = max(0.0, min(1.0, edge_clamp))
+            if clamp < 1.0:
+                if raw > clamp:
+                    raw = clamp
+                elif raw < -clamp:
+                    raw = -clamp
+            curv = 0.5 + raw * max(0.0, strength)
             curv = _clamp01(curv)
             curv *= _clamp01(pixels[i_c + 2])
             if contrast:

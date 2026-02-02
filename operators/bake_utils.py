@@ -22,7 +22,6 @@ _BAKE_PASS_LABELS = {
     "normal": "normal",
     "ambient_occlusion": "ambient_occlusion",
     "curvature": "curvature",
-    "curvature_from_normal": "curvature_from_normal",
     "opacity": "opacity",
     "thickness": "thickness",
     "position": "position",
@@ -481,7 +480,7 @@ def _prepare_bake_pass(item, material, cycles, bake):
         bake.normal_g = item.normal_g
         bake.normal_b = item.normal_b
         return False
-    if target_name == "curvature_from_normal":
+    if target_name == "curvature" and getattr(item, "curvature_mode", "MATERIAL") == "NORMAL":
         cycles.samples = 1
         cycles.bake_type = "NORMAL"
         bake.normal_space = "TANGENT"
@@ -833,7 +832,19 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         _set_highpoly_material_mode(material, "pure_color")
                         _set_highpoly_pure_color(material, (0.0, 0.0, 0.0, 1.0))
                         _ensure_material_slot(low_obj, material)
+                        _clear_image(image)
                         bake.use_clear = False
+                        # Apply cage settings before the opacity passes.
+                        bake.use_cage = low_item.use_cage
+                        bake.cage_object = low_item.cage_object if low_item.use_cage else None
+                        if low_item.override_cage_extrusion:
+                            bake.cage_extrusion = low_item.cage_extrusion
+                        else:
+                            bake.cage_extrusion = data.global_extrusion
+                        if low_item.override_cage_max_ray_distance:
+                            bake.max_ray_distance = low_item.cage_max_ray_distance
+                        else:
+                            bake.max_ray_distance = data.global_max_ray_distance
 
                         if context.mode != "OBJECT":
                             bpy.ops.object.mode_set(mode="OBJECT")
@@ -902,6 +913,12 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                                         temp_collection.objects.unlink(obj)
 
                         nodes.remove(image_node)
+                        # Restore original materials so other passes aren't affected.
+                        if low_obj in saved_materials:
+                            _restore_materials(low_obj, saved_materials[low_obj])
+                        for high_obj in high_objs:
+                            if high_obj in saved_materials:
+                                _restore_materials(high_obj, saved_materials[high_obj])
                         continue
 
                     high_items = [
@@ -1085,13 +1102,14 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         per_channel=item.sharpen_per_channel,
                     )
                     _debug_log(context, "Applied sharpen")
-                if target_name == "curvature_from_normal":
+                if target_name == "curvature" and getattr(item, "curvature_mode", "MATERIAL") == "NORMAL":
                     _normal_to_curvature(
                         image,
                         radius=item.normal_curv_radius,
                         strength=item.normal_curv_strength,
                         contrast=item.normal_curv_contrast,
                         invert=item.normal_curv_invert,
+                        edge_clamp=item.normal_curv_edge_clamp,
                     )
                     _debug_log(context, "Converted normal map to curvature")
                 stage_marks["fxaa"] = time.perf_counter()
