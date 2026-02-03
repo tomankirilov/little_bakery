@@ -129,6 +129,31 @@ def _draw_about(section_layout, data, force_expand=False):
         about_col.separator(factor=0.5)
 
 
+def _draw_completed(layout, data):
+    completed_box = layout.box()
+    title_row = completed_box.row()
+    title_row.alignment = "CENTER"
+    title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
+
+    info_col = completed_box.column(align=True)
+    info_col.label(text=f"- Completed in {data.last_bake_duration}")
+
+    textures = [item.value for item in data.last_bake_textures]
+    if textures:
+        list_box = layout.box()
+        list_header = list_box.row()
+        list_header.label(text="Baked Textures")
+        for name in textures:
+            row = list_box.split(factor=0.08, align=True)
+            row.label(text="")
+            row.column(align=True).label(text=f"- {name}")
+
+    buttons_col = layout.column(align=True)
+    buttons_col.scale_y = 1.6
+    buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+    buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+
 class BAKERY_PT_completed(bpy.types.Panel):
     bl_label = ""
     bl_idname = "BAKERY_PT_completed"
@@ -149,31 +174,7 @@ class BAKERY_PT_completed(bpy.types.Panel):
         layout = self.layout
         data = context.scene.bakery_data
 
-        completed_box = layout.box()
-        title_row = completed_box.row()
-        title_row.alignment = "CENTER"
-        title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
-
-        info_col = completed_box.column(align=True)
-        info_col.label(text=f"- Completed in {data.last_bake_duration}")
-
-        textures = [item.value for item in data.last_bake_textures]
-        if textures:
-            list_box = layout.box()
-            list_header = list_box.row()
-
-            # list_header.label(text="Baked Textures", icon="IMAGE")
-            list_header.label(text="Baked Textures")
-            for name in textures:
-                row = list_box.split(factor=0.08, align=True)
-                row.label(text="")
-                row.column(align=True).label(text=f"- {name}")
-
-        buttons_col = layout.column(align=True)
-        buttons_col.scale_y = 1.6
-        buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
-        buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
-
+        _draw_completed(layout, data)
         _draw_about(layout, data, force_expand=True)
 
 
@@ -225,19 +226,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
         _draw_about(layout, data)
 
         if data.show_last_bake and data.last_bake_duration:
-            completed_box = layout.box()
-            title_row = completed_box.row()
-            title_row.alignment = "CENTER"
-            title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
-
-            info_col = completed_box.column(align=True)
-            info_col.label(text=f"- Completed in {data.last_bake_duration}")
-
-            buttons_col = layout.column(align=True)
-            buttons_col.scale_y = 1.6
-            buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
-            buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
-
+            _draw_completed(layout, data)
             _draw_about(layout, force_expand=True)
             return
 

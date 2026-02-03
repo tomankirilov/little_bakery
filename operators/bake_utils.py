@@ -377,6 +377,7 @@ def _save_image(image, output_dir, filename, settings, scene=None, context=None)
     _debug_log(context, f"Saved image to {filepath}")
 
 def _reload_image_from_disk(image, filepath):
+    # Reload the saved file so it shows after reopen.
     # Replace the in-blend datablock with the on-disk file contents.
     if not image:
         return
@@ -879,6 +880,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         _set_active_uv(low_obj, None)
 
                     if target_name == "opacity":
+                        # Paint black first, then white on top.
                         # Two-pass opacity: black base on target, then white projection from sources.
                         _set_highpoly_material_mode(material, "pure_color")
                         _set_highpoly_pure_color(material, (0.0, 0.0, 0.0, 1.0))
