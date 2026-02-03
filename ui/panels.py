@@ -246,7 +246,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Global Settings", icon="TOOL_SETTINGS")
+        header.label(text="Render Settings", icon="RESTRICT_RENDER_OFF")
         if data.show_global_settings:
             sections = global_box.column(align=True)
 
@@ -303,52 +303,6 @@ class BAKERY_PT_tools(bpy.types.Panel):
             header = sections.row(align=True)
             header.prop(
                 data,
-                "show_bake_passes",
-                icon="TRIA_DOWN" if data.show_bake_passes else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Bake Passes")
-            if data.show_bake_passes:
-                bake_col = sections.column(align=True)
-                row = bake_col.row()
-                row.template_list(
-                    "BAKERY_UL_bake_passes",
-                    "",
-                    data,
-                    "global_bake_passes",
-                    data,
-                    "active_global_bake_pass_index",
-                    rows=4,
-                )
-                col = row.column(align=True)
-                col.operator("bakery.bake_pass_add_global", icon="ADD", text="")
-                col.operator("bakery.bake_pass_remove_global", icon="REMOVE", text="")
-                col.separator()
-                col.operator("bakery.bake_pass_move_global_up", icon="TRIA_UP", text="")
-                col.operator("bakery.bake_pass_move_global_down", icon="TRIA_DOWN", text="")
-
-                if data.global_bake_passes and 0 <= data.active_global_bake_pass_index < len(data.global_bake_passes):
-                    item = data.global_bake_passes[data.active_global_bake_pass_index]
-                    settings_col = bake_col.column(align=True)
-                    settings_col.separator()
-                    header = settings_col.row(align=True)
-                    header.prop(
-                        item,
-                        "show_settings",
-                        icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
-                        icon_only=True,
-                        emboss=False,
-                    )
-                    header.label(text="Pass Settings")
-                    if item.show_settings:
-                        _draw_bake_pass_settings(settings_col, item)
-
-            sections.separator(factor=0.4)
-
-            header = sections.row(align=True)
-            header.prop(
-                data,
                 "show_render_cage",
                 icon="TRIA_DOWN" if data.show_render_cage else "TRIA_RIGHT",
                 icon_only=True,
@@ -397,6 +351,52 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     row = output_col.split(factor=0.4, align=True)
                     row.label(text="Compression")
                     row.prop(data, "output_png_compression", text="")
+        bake_box = layout.box()
+        header = bake_box.row(align=True)
+        header.scale_y = 1.4
+        header.prop(
+            data,
+            "show_bake_passes",
+            icon="TRIA_DOWN" if data.show_bake_passes else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Bake Passes", icon="RESTRICT_COLOR_ON")
+        if data.show_bake_passes:
+            bake_col = bake_box.column(align=True)
+            row = bake_col.row()
+            row.template_list(
+                "BAKERY_UL_bake_passes",
+                "",
+                data,
+                "global_bake_passes",
+                data,
+                "active_global_bake_pass_index",
+                rows=4,
+            )
+            col = row.column(align=True)
+            col.operator("bakery.bake_pass_add_global", icon="ADD", text="")
+            col.operator("bakery.bake_pass_remove_global", icon="REMOVE", text="")
+            col.separator()
+            col.operator("bakery.bake_pass_move_global_up", icon="TRIA_UP", text="")
+            col.operator("bakery.bake_pass_move_global_down", icon="TRIA_DOWN", text="")
+
+            if data.global_bake_passes and 0 <= data.active_global_bake_pass_index < len(data.global_bake_passes):
+                item = data.global_bake_passes[data.active_global_bake_pass_index]
+                settings_col = bake_col.column(align=True)
+                settings_col.separator()
+                header = settings_col.row(align=True)
+                header.prop(
+                    item,
+                    "show_settings",
+                    icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                header.label(text="Pass Settings")
+                if item.show_settings:
+                    _draw_bake_pass_settings(settings_col, item)
+
         box = layout.box()
         header = box.row(align=True)
         header.scale_y = 1.4

@@ -130,7 +130,7 @@ class BakeryData(bpy.types.PropertyGroup):
     )
     global_bake_passes: bpy.props.CollectionProperty(type=BakeryBakePassItem)
     active_global_bake_pass_index: bpy.props.IntProperty(default=-1)
-    global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.0, min=0.0)
+    global_extrusion: bpy.props.FloatProperty(name="Cage Extrusion", default=0.1, min=0.0)
     global_max_ray_distance: bpy.props.FloatProperty(
         name="Max Ray Distance",
         default=0.0,
