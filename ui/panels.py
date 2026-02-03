@@ -129,6 +129,31 @@ def _draw_about(section_layout, data, force_expand=False):
         about_col.separator(factor=0.5)
 
 
+def _draw_completed(layout, data):
+    completed_box = layout.box()
+    title_row = completed_box.row()
+    title_row.alignment = "CENTER"
+    title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
+
+    info_col = completed_box.column(align=True)
+    info_col.label(text=f"- Completed in {data.last_bake_duration}")
+
+    textures = [item.value for item in data.last_bake_textures]
+    if textures:
+        list_box = layout.box()
+        list_header = list_box.row()
+        list_header.label(text="Baked Textures")
+        for name in textures:
+            row = list_box.split(factor=0.08, align=True)
+            row.label(text="")
+            row.column(align=True).label(text=f"- {name}")
+
+    buttons_col = layout.column(align=True)
+    buttons_col.scale_y = 1.6
+    buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
+    buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
+
+
 class BAKERY_PT_completed(bpy.types.Panel):
     bl_label = ""
     bl_idname = "BAKERY_PT_completed"
@@ -149,31 +174,7 @@ class BAKERY_PT_completed(bpy.types.Panel):
         layout = self.layout
         data = context.scene.bakery_data
 
-        completed_box = layout.box()
-        title_row = completed_box.row()
-        title_row.alignment = "CENTER"
-        title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
-
-        info_col = completed_box.column(align=True)
-        info_col.label(text=f"- Completed in {data.last_bake_duration}")
-
-        textures = [item.value for item in data.last_bake_textures]
-        if textures:
-            list_box = layout.box()
-            list_header = list_box.row()
-
-            # list_header.label(text="Baked Textures", icon="IMAGE")
-            list_header.label(text="Baked Textures")
-            for name in textures:
-                row = list_box.split(factor=0.08, align=True)
-                row.label(text="")
-                row.column(align=True).label(text=f"- {name}")
-
-        buttons_col = layout.column(align=True)
-        buttons_col.scale_y = 1.6
-        buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
-        buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
-
+        _draw_completed(layout, data)
         _draw_about(layout, data, force_expand=True)
 
 
@@ -225,19 +226,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
         _draw_about(layout, data)
 
         if data.show_last_bake and data.last_bake_duration:
-            completed_box = layout.box()
-            title_row = completed_box.row()
-            title_row.alignment = "CENTER"
-            title_row.label(text="BAKE COMPLETED", icon="CHECKMARK")
-
-            info_col = completed_box.column(align=True)
-            info_col.label(text=f"- Completed in {data.last_bake_duration}")
-
-            buttons_col = layout.column(align=True)
-            buttons_col.scale_y = 1.6
-            buttons_col.operator("bakery.open_output_dir", text="Open Bake Directory", icon="FILE_FOLDER")
-            buttons_col.operator("bakery.hide_last_bake", text="Continue Baking", icon="PLAY")
-
+            _draw_completed(layout, data)
             _draw_about(layout, force_expand=True)
             return
 
@@ -257,7 +246,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Global Settings", icon="TOOL_SETTINGS")
+        header.label(text="Settings", icon="PREFERENCES")
         if data.show_global_settings:
             sections = global_box.column(align=True)
 
@@ -272,13 +261,14 @@ class BAKERY_PT_tools(bpy.types.Panel):
             header.label(text="Rendering")
             if data.show_render_settings:
                 render_col = _indent_column(sections)
-                row = render_col.split(factor=0.4, align=True)
+                row = render_col.row(align=True)
                 row.label(text="Render Device")
-                row.prop(data, "render_device", text="")
+                device_col = _indent_column(render_col)
+                device_col.prop(data, "render_device", text="")
 
                 render_col.separator(factor=0.3)
 
-                _draw_resolution_row(render_col, data, "global_resolution")
+                _draw_resolution_row(render_col, data, "global_resolution", target="GLOBAL")
                 render_col.separator(factor=0.3)
 
                 pad_label = render_col.row(align=True)
@@ -308,52 +298,6 @@ class BAKERY_PT_tools(bpy.types.Panel):
                 msaa_row = aa_col.split(factor=0.4, align=True)
                 msaa_row.label(text="MSAA")
                 msaa_row.prop(data, "global_msaa", text="")
-
-            sections.separator(factor=0.4)
-
-            header = sections.row(align=True)
-            header.prop(
-                data,
-                "show_bake_passes",
-                icon="TRIA_DOWN" if data.show_bake_passes else "TRIA_RIGHT",
-                icon_only=True,
-                emboss=False,
-            )
-            header.label(text="Bake Passes")
-            if data.show_bake_passes:
-                bake_col = sections.column(align=True)
-                row = bake_col.row()
-                row.template_list(
-                    "BAKERY_UL_bake_passes",
-                    "",
-                    data,
-                    "global_bake_passes",
-                    data,
-                    "active_global_bake_pass_index",
-                    rows=4,
-                )
-                col = row.column(align=True)
-                col.operator("bakery.bake_pass_add_global", icon="ADD", text="")
-                col.operator("bakery.bake_pass_remove_global", icon="REMOVE", text="")
-                col.separator()
-                col.operator("bakery.bake_pass_move_global_up", icon="TRIA_UP", text="")
-                col.operator("bakery.bake_pass_move_global_down", icon="TRIA_DOWN", text="")
-
-                if data.global_bake_passes and 0 <= data.active_global_bake_pass_index < len(data.global_bake_passes):
-                    item = data.global_bake_passes[data.active_global_bake_pass_index]
-                    settings_col = bake_col.column(align=True)
-                    settings_col.separator()
-                    header = settings_col.row(align=True)
-                    header.prop(
-                        item,
-                        "show_settings",
-                        icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
-                        icon_only=True,
-                        emboss=False,
-                    )
-                    header.label(text="Pass Settings")
-                    if item.show_settings:
-                        _draw_bake_pass_settings(settings_col, item)
 
             sections.separator(factor=0.4)
 
@@ -408,6 +352,52 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     row = output_col.split(factor=0.4, align=True)
                     row.label(text="Compression")
                     row.prop(data, "output_png_compression", text="")
+        bake_box = layout.box()
+        header = bake_box.row(align=True)
+        header.scale_y = 1.4
+        header.prop(
+            data,
+            "show_bake_passes",
+            icon="TRIA_DOWN" if data.show_bake_passes else "TRIA_RIGHT",
+            icon_only=True,
+            emboss=False,
+        )
+        header.label(text="Bake Passes", icon="RESTRICT_COLOR_ON")
+        if data.show_bake_passes:
+            bake_col = bake_box.column(align=True)
+            row = bake_col.row()
+            row.template_list(
+                "BAKERY_UL_bake_passes",
+                "",
+                data,
+                "global_bake_passes",
+                data,
+                "active_global_bake_pass_index",
+                rows=4,
+            )
+            col = row.column(align=True)
+            col.operator("bakery.bake_pass_add_global", icon="ADD", text="")
+            col.operator("bakery.bake_pass_remove_global", icon="REMOVE", text="")
+            col.separator()
+            col.operator("bakery.bake_pass_move_global_up", icon="TRIA_UP", text="")
+            col.operator("bakery.bake_pass_move_global_down", icon="TRIA_DOWN", text="")
+
+            if data.global_bake_passes and 0 <= data.active_global_bake_pass_index < len(data.global_bake_passes):
+                item = data.global_bake_passes[data.active_global_bake_pass_index]
+                settings_col = bake_col.column(align=True)
+                settings_col.separator()
+                header = settings_col.row(align=True)
+                header.prop(
+                    item,
+                    "show_settings",
+                    icon="TRIA_DOWN" if item.show_settings else "TRIA_RIGHT",
+                    icon_only=True,
+                    emboss=False,
+                )
+                header.label(text="Pass Settings")
+                if item.show_settings:
+                    _draw_bake_pass_settings(settings_col, item)
+
         box = layout.box()
         header = box.row(align=True)
         header.scale_y = 1.4
@@ -458,9 +448,19 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     row.prop(tex_set, "override_resolution", text="")
                     res_row = row.row(align=True)
                     res_row.enabled = tex_set.override_resolution
-                    res_split = res_row.split(factor=0.4, align=True)
-                    res_split.label(text="Resolution")
-                    res_split.prop(tex_set, "size", text="")
+                    res_label = set_col.row(align=True)
+                    res_label.label(text="Resolution")
+                    res_col = _indent_column(set_col)
+                    res_col.enabled = tex_set.override_resolution
+                    res_col.prop(tex_set, "size", index=0, text="")
+                    res_col.prop(tex_set, "size", index=1, text="")
+                    controls = res_col.row(align=True)
+                    op = controls.operator("bakery.resolution_scale", text="Half", icon="TRIA_DOWN")
+                    op.target = "SET"
+                    op.factor = 0.5
+                    op = controls.operator("bakery.resolution_scale", text="Double", icon="TRIA_UP")
+                    op.target = "SET"
+                    op.factor = 2.0
                     set_col.separator(factor=0.3)
                     row = set_col.row(align=True)
                     row.prop(tex_set, "override_dilation", text="")

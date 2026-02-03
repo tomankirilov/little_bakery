@@ -1,5 +1,6 @@
 import os
 import time
+from array import array
 import bpy
 
 
@@ -372,7 +373,58 @@ def _save_image(image, output_dir, filename, settings, scene=None, context=None)
         image_settings.color_mode = saved_settings["color_mode"]
         image_settings.color_depth = saved_settings["color_depth"]
         image_settings.compression = saved_settings["compression"]
+    _reload_image_from_disk(image, filepath)
     _debug_log(context, f"Saved image to {filepath}")
+
+def _reload_image_from_disk(image, filepath):
+    # Reload the saved file so it shows after reopen.
+    # Replace the in-blend datablock with the on-disk file contents.
+    if not image:
+        return
+    filepath = bpy.path.abspath(filepath)
+    # If the image has no users, swap it for a freshly loaded file image.
+    if image.users == 0:
+        name = image.name
+        try:
+            bpy.data.images.remove(image)
+        except Exception:
+            image = None
+        try:
+            loaded = bpy.data.images.load(filepath, check_existing=False)
+        except Exception:
+            return
+        loaded.name = name
+        loaded.source = "FILE"
+        loaded.filepath_raw = filepath
+        loaded.filepath = filepath
+        loaded.use_fake_user = True
+        return
+    # Otherwise, load the file into a temp datablock and copy pixels in place.
+    try:
+        temp = bpy.data.images.load(filepath, check_existing=False)
+    except Exception:
+        return
+    try:
+        if image.size[0] != temp.size[0] or image.size[1] != temp.size[1]:
+            try:
+                image.scale(temp.size[0], temp.size[1])
+            except RuntimeError:
+                pass
+        total = temp.size[0] * temp.size[1] * 4
+        pixels = array("f", [0.0]) * total
+        temp.pixels.foreach_get(pixels)
+        image.pixels.foreach_set(pixels)
+        image.update()
+        image.source = "FILE"
+        image.filepath_raw = filepath
+        image.filepath = filepath
+        if image.users == 0:
+            image.use_fake_user = True
+    finally:
+        try:
+            bpy.data.images.remove(temp)
+        except Exception:
+            pass
 
 # turn the output string into a real folder path.
 def _resolve_output_dir(output_dir):
@@ -828,6 +880,7 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         _set_active_uv(low_obj, None)
 
                     if target_name == "opacity":
+                        # Paint black first, then white on top.
                         # Two-pass opacity: black base on target, then white projection from sources.
                         _set_highpoly_material_mode(material, "pure_color")
                         _set_highpoly_pure_color(material, (0.0, 0.0, 0.0, 1.0))
