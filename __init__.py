@@ -73,11 +73,6 @@ class BakeryPreferences(bpy.types.AddonPreferences):
         description="Separator between texture set and bake pass names",
         default="_",
     )
-    use_numpy_filters: bpy.props.BoolProperty(
-        name="Use NumPy for Filters",
-        description="Use NumPy for FXAA, Sharpen, and Normalize when available",
-        default=True,
-    )
 
     # Draw Preferences UI:
     def draw(self, context):
@@ -86,7 +81,6 @@ class BakeryPreferences(bpy.types.AddonPreferences):
         layout.prop(self, "name_separator")
         layout.prop(self, "save_before_bake")
         layout.prop(self, "debug_logging")
-        layout.prop(self, "use_numpy_filters")
 
         # Links:
         #row = layout.row(align=True)

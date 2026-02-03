@@ -1,34 +1,8 @@
 from array import array
 
-try:
-    import numpy as np
-except Exception:
-    np = None
 
-
-def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=False, edge_clamp=1.0, use_numpy=False):
+def _normal_to_curvature(image, radius=2, strength=1.0, contrast=0.2, invert=False, edge_clamp=1.0):
     # Photoshop-style curvature from RG emboss, multiplied by B.
-    if use_numpy and np is not None:
-        _normal_to_curvature_numpy(
-            image,
-            radius=radius,
-            strength=strength,
-            contrast=contrast,
-            invert=invert,
-            edge_clamp=edge_clamp,
-        )
-        return
-    _normal_to_curvature_python(
-        image,
-        radius=radius,
-        strength=strength,
-        contrast=contrast,
-        invert=invert,
-        edge_clamp=edge_clamp,
-    )
-
-
-def _normal_to_curvature_python(image, radius=2, strength=1.0, contrast=0.2, invert=False, edge_clamp=1.0):
     width, height = image.size
     if width < 2 or height < 2:
         return
@@ -42,6 +16,13 @@ def _normal_to_curvature_python(image, radius=2, strength=1.0, contrast=0.2, inv
     def _idx(x, y):
         return (y * width + x) * 4
 
+    def _normal_at(x, y):
+        i = _idx(x, y)
+        nx = pixels[i] * 2.0 - 1.0
+        ny = pixels[i + 1] * 2.0 - 1.0
+        nz = pixels[i + 2] * 2.0 - 1.0
+        return nx, ny, nz
+
     def _clamp01(value):
         if value < 0.0:
             return 0.0
@@ -49,8 +30,6 @@ def _normal_to_curvature_python(image, radius=2, strength=1.0, contrast=0.2, inv
             return 1.0
         return value
 
-    clamp = max(0.0, min(1.0, edge_clamp))
-    strength = max(0.0, strength)
     for y in range(height):
         y0 = max(0, y - radius)
         y1 = min(height - 1, y + radius)
@@ -66,12 +45,13 @@ def _normal_to_curvature_python(image, radius=2, strength=1.0, contrast=0.2, inv
             dx = pixels[i_r] - pixels[i_l]
             dy = pixels[i_u + 1] - pixels[i_d + 1]
             raw = (dx + dy) * 0.5
+            clamp = max(0.0, min(1.0, edge_clamp))
             if clamp < 1.0:
                 if raw > clamp:
                     raw = clamp
                 elif raw < -clamp:
                     raw = -clamp
-            curv = 0.5 + raw * strength
+            curv = 0.5 + raw * max(0.0, strength)
             curv = _clamp01(curv)
             curv *= _clamp01(pixels[i_c + 2])
             if contrast:
@@ -86,48 +66,5 @@ def _normal_to_curvature_python(image, radius=2, strength=1.0, contrast=0.2, inv
             out_pixels[i_c + 3] = 1.0
 
     image.pixels.foreach_set(out_pixels)
-    image.update()
-
-
-def _normal_to_curvature_numpy(image, radius=2, strength=1.0, contrast=0.2, invert=False, edge_clamp=1.0):
-    width, height = image.size
-    if width < 2 or height < 2:
-        return
-
-    radius = max(1, int(radius))
-    clamp = max(0.0, min(1.0, edge_clamp))
-    strength = max(0.0, strength)
-
-    pixels = np.empty((height, width, 4), dtype=np.float32)
-    image.pixels.foreach_get(pixels.ravel())
-
-    padded_x = np.pad(pixels, ((0, 0), (radius, radius), (0, 0)), mode="edge")
-    left = padded_x[:, 0:width, 0]
-    right = padded_x[:, 2 * radius:2 * radius + width, 0]
-
-    padded_y = np.pad(pixels, ((radius, radius), (0, 0), (0, 0)), mode="edge")
-    down = padded_y[0:height, :, 1]
-    up = padded_y[2 * radius:2 * radius + height, :, 1]
-
-    raw = (right - left + up - down) * 0.5
-    if clamp < 1.0:
-        raw = np.clip(raw, -clamp, clamp)
-
-    curv = 0.5 + raw * strength
-    curv = np.clip(curv, 0.0, 1.0)
-    curv *= np.clip(pixels[:, :, 2], 0.0, 1.0)
-
-    if contrast:
-        curv = (curv - 0.5) * (1.0 + contrast) + 0.5
-    if invert:
-        curv = 1.0 - curv
-    curv = np.clip(curv, 0.0, 1.0)
-
-    pixels[:, :, 0] = curv
-    pixels[:, :, 1] = curv
-    pixels[:, :, 2] = curv
-    pixels[:, :, 3] = 1.0
-
-    image.pixels.foreach_set(pixels.ravel())
     image.update()
 

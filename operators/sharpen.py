@@ -1,31 +1,10 @@
 from array import array
-import bpy
-
-try:
-    import numpy as np
-except Exception:
-    np = None
-
-
-def _use_numpy_filters():
-    prefs = getattr(bpy.context, "preferences", None)
-    if not prefs:
-        return False
-    root_package = __package__.split(".")[0] if __package__ else ""
-    addon = prefs.addons.get(root_package) if root_package else None
-    if addon and addon.preferences:
-        return bool(getattr(addon.preferences, "use_numpy_filters", False))
-    return False
 
 
 def _sharpen_image(image, amount=0.5, per_channel=False):
     # Simple unsharp mask: original + amount * (original - blurred).
     width, height = image.size
     if width < 3 or height < 3 or amount <= 0.0:
-        return
-
-    if np is not None and _use_numpy_filters():
-        _sharpen_image_numpy(image, amount=amount, per_channel=per_channel)
         return
 
     total = width * height * 4
@@ -71,41 +50,4 @@ def _sharpen_image(image, amount=0.5, per_channel=False):
             out_pixels[i + 3] = pixels[i + 3]
 
     image.pixels.foreach_set(out_pixels)
-    image.update()
-
-
-def _sharpen_image_numpy(image, amount=0.5, per_channel=False):
-    width, height = image.size
-    pixels = np.empty((height, width, 4), dtype=np.float32)
-    image.pixels.foreach_get(pixels.ravel())
-
-    padded = np.pad(pixels, ((1, 1), (1, 1), (0, 0)), mode="edge")
-    center = pixels
-    left = padded[1:-1, :-2, :]
-    right = padded[1:-1, 2:, :]
-    up = padded[:-2, 1:-1, :]
-    down = padded[2:, 1:-1, :]
-
-    if per_channel:
-        blur = (left + right + up + down + center) / 5.0
-        out = center + amount * (center - blur)
-        out[:, :, :3] = np.clip(out[:, :, :3], 0.0, 1.0)
-        out[:, :, 3] = center[:, :, 3]
-    else:
-        luma = center[:, :, 0] * 0.299 + center[:, :, 1] * 0.587 + center[:, :, 2] * 0.114
-        blur_l = (
-            left[:, :, 0] * 0.299 + left[:, :, 1] * 0.587 + left[:, :, 2] * 0.114
-            + right[:, :, 0] * 0.299 + right[:, :, 1] * 0.587 + right[:, :, 2] * 0.114
-            + up[:, :, 0] * 0.299 + up[:, :, 1] * 0.587 + up[:, :, 2] * 0.114
-            + down[:, :, 0] * 0.299 + down[:, :, 1] * 0.587 + down[:, :, 2] * 0.114
-            + luma
-        ) / 5.0
-        delta = amount * (luma - blur_l)
-        out = center.copy()
-        out[:, :, 0] = np.clip(center[:, :, 0] + delta, 0.0, 1.0)
-        out[:, :, 1] = np.clip(center[:, :, 1] + delta, 0.0, 1.0)
-        out[:, :, 2] = np.clip(center[:, :, 2] + delta, 0.0, 1.0)
-        out[:, :, 3] = center[:, :, 3]
-
-    image.pixels.foreach_set(out.ravel())
     image.update()

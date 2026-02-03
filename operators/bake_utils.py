@@ -1155,6 +1155,16 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         per_channel=item.sharpen_per_channel,
                     )
                     _debug_log(context, "Applied sharpen")
+                if target_name == "curvature" and getattr(item, "curvature_mode", "MATERIAL") == "NORMAL":
+                    _normal_to_curvature(
+                        image,
+                        radius=item.normal_curv_radius,
+                        strength=item.normal_curv_strength,
+                        contrast=item.normal_curv_contrast,
+                        invert=item.normal_curv_invert,
+                        edge_clamp=item.normal_curv_edge_clamp,
+                    )
+                    _debug_log(context, "Converted normal map to curvature")
                 stage_marks["fxaa"] = time.perf_counter()
                 stage_marks["curvature"] = stage_marks["fxaa"]
                 if scale_factor > 1:
@@ -1165,20 +1175,6 @@ def _bake_texture_sets(operator, context, texture_sets, label):
                         f"to {target_resolution[0]}x{target_resolution[1]}",
                     )
                 stage_marks["downscale"] = time.perf_counter()
-                if target_name == "curvature" and getattr(item, "curvature_mode", "MATERIAL") == "NORMAL":
-                    prefs = _get_addon_prefs(context)
-                    use_numpy = bool(getattr(prefs, "use_numpy_filters", False)) if prefs else False
-                    _normal_to_curvature(
-                        image,
-                        radius=item.normal_curv_radius,
-                        strength=item.normal_curv_strength,
-                        contrast=item.normal_curv_contrast,
-                        invert=item.normal_curv_invert,
-                        edge_clamp=item.normal_curv_edge_clamp,
-                        use_numpy=use_numpy,
-                    )
-                    _debug_log(context, "Converted normal map to curvature")
-                    stage_marks["curvature"] = time.perf_counter()
                 extension = "png" if settings["output_format"] == "PNG" else "tga"
                 _save_image(
                     image,
