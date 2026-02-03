@@ -142,6 +142,40 @@ class BAKERY_OT_texture_set_duplicate(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class BAKERY_OT_resolution_scale(bpy.types.Operator):
+    bl_idname = "bakery.resolution_scale"
+    bl_label = "Scale Resolution"
+    bl_description = "Double or halve the resolution"
+
+    target: bpy.props.EnumProperty(
+        items=[
+            ("GLOBAL", "Global", ""),
+            ("SET", "Texture Set", ""),
+        ],
+        default="GLOBAL",
+    )
+    factor: bpy.props.FloatProperty(default=1.0)
+
+    def execute(self, context):
+        data = context.scene.bakery_data
+        if self.target == "SET":
+            if not data.texture_sets or data.active_texture_index < 0:
+                return {"CANCELLED"}
+            tex_set = data.texture_sets[data.active_texture_index]
+            width, height = tex_set.size
+        else:
+            width, height = data.global_resolution
+
+        width = max(1, int(width * self.factor))
+        height = max(1, int(height * self.factor))
+
+        if self.target == "SET":
+            tex_set.size = (width, height)
+        else:
+            data.global_resolution = (width, height)
+        return {"FINISHED"}
+
+
 class BAKERY_OT_target_mesh_add(bpy.types.Operator):
     bl_idname = "bakery.target_mesh_add"
     bl_label = "Add Target Mesh"

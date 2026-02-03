@@ -11,12 +11,22 @@ def _indent_column(layout):
 
 
 # draw a resolution row with a label and a field.
-def _draw_resolution_row(layout, obj, prop_name):
+def _draw_resolution_row(layout, obj, prop_name, target="GLOBAL"):
     # draw the resolution in a consistent label/value layout.
     # keep resolution rows consistent across global and per-set UI.
-    row = layout.split(factor=0.4, align=True)
-    row.label(text="Resolution")
-    row.prop(obj, prop_name, text="")
+    label_row = layout.row(align=True)
+    label_row.label(text="Resolution")
+    field_col = _indent_column(layout)
+    res_col = field_col.column(align=True)
+    res_col.prop(obj, prop_name, index=0, text="")
+    res_col.prop(obj, prop_name, index=1, text="")
+    controls = field_col.row(align=True)
+    op = controls.operator("bakery.resolution_scale", text="Half", icon="TRIA_DOWN")
+    op.target = target
+    op.factor = 0.5
+    op = controls.operator("bakery.resolution_scale", text="Double", icon="TRIA_UP")
+    op.target = target
+    op.factor = 2.0
 
 
 # draw settings for a single bake pass item.

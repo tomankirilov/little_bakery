@@ -246,7 +246,7 @@ class BAKERY_PT_tools(bpy.types.Panel):
             icon_only=True,
             emboss=False,
         )
-        header.label(text="Render Settings", icon="RESTRICT_RENDER_OFF")
+        header.label(text="Settings", icon="PREFERENCES")
         if data.show_global_settings:
             sections = global_box.column(align=True)
 
@@ -261,13 +261,14 @@ class BAKERY_PT_tools(bpy.types.Panel):
             header.label(text="Rendering")
             if data.show_render_settings:
                 render_col = _indent_column(sections)
-                row = render_col.split(factor=0.4, align=True)
+                row = render_col.row(align=True)
                 row.label(text="Render Device")
-                row.prop(data, "render_device", text="")
+                device_col = _indent_column(render_col)
+                device_col.prop(data, "render_device", text="")
 
                 render_col.separator(factor=0.3)
 
-                _draw_resolution_row(render_col, data, "global_resolution")
+                _draw_resolution_row(render_col, data, "global_resolution", target="GLOBAL")
                 render_col.separator(factor=0.3)
 
                 pad_label = render_col.row(align=True)
@@ -447,9 +448,19 @@ class BAKERY_PT_tools(bpy.types.Panel):
                     row.prop(tex_set, "override_resolution", text="")
                     res_row = row.row(align=True)
                     res_row.enabled = tex_set.override_resolution
-                    res_split = res_row.split(factor=0.4, align=True)
-                    res_split.label(text="Resolution")
-                    res_split.prop(tex_set, "size", text="")
+                    res_label = set_col.row(align=True)
+                    res_label.label(text="Resolution")
+                    res_col = _indent_column(set_col)
+                    res_col.enabled = tex_set.override_resolution
+                    res_col.prop(tex_set, "size", index=0, text="")
+                    res_col.prop(tex_set, "size", index=1, text="")
+                    controls = res_col.row(align=True)
+                    op = controls.operator("bakery.resolution_scale", text="Half", icon="TRIA_DOWN")
+                    op.target = "SET"
+                    op.factor = 0.5
+                    op = controls.operator("bakery.resolution_scale", text="Double", icon="TRIA_UP")
+                    op.target = "SET"
+                    op.factor = 2.0
                     set_col.separator(factor=0.3)
                     row = set_col.row(align=True)
                     row.prop(tex_set, "override_dilation", text="")
