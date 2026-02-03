@@ -89,8 +89,8 @@ class BakeryBakePassItem(bpy.types.PropertyGroup):
     curvature_mode: bpy.props.EnumProperty(
         name="Mode",
         items=[
-            ("MATERIAL", "Material", ""),
-            ("NORMAL", "Normal", ""),
+            ("MATERIAL", "Geometry", ""),
+            ("NORMAL", "Filter", ""),
         ],
         default="MATERIAL",
     )

@@ -1,4 +1,21 @@
 from array import array
+import bpy
+
+try:
+    import numpy as np
+except Exception:
+    np = None
+
+
+def _use_numpy_filters():
+    prefs = getattr(bpy.context, "preferences", None)
+    if not prefs:
+        return False
+    root_package = __package__.split(".")[0] if __package__ else ""
+    addon = prefs.addons.get(root_package) if root_package else None
+    if addon and addon.preferences:
+        return bool(getattr(addon.preferences, "use_numpy_filters", False))
+    return False
 
 
 #threshold of 0.1 is good for most cases.
@@ -13,6 +30,10 @@ def _apply_fxaa(image, threshold=0.1, blend=0.5):
 
     width, height = image.size
     if width < 3 or height < 3:
+        return
+
+    if np is not None and _use_numpy_filters():
+        _apply_fxaa_numpy(image, threshold=threshold, blend=blend)
         return
 
     total = width * height * 4
@@ -61,4 +82,37 @@ def _apply_fxaa(image, threshold=0.1, blend=0.5):
             out_pixels[idx + 3] = pixels[idx + 3] * (1.0 - blend) + a * blend
 
     image.pixels.foreach_set(out_pixels)
+    image.update()
+
+
+def _apply_fxaa_numpy(image, threshold=0.1, blend=0.5):
+    width, height = image.size
+    pixels = np.empty((height, width, 4), dtype=np.float32)
+    image.pixels.foreach_get(pixels.ravel())
+
+    center = pixels
+    padded = np.pad(center, ((1, 1), (1, 1), (0, 0)), mode="edge")
+    n = padded[:-2, 1:-1, :]
+    s = padded[2:, 1:-1, :]
+    w = padded[1:-1, :-2, :]
+    e = padded[1:-1, 2:, :]
+
+    lum = center[:, :, 0] * 0.299 + center[:, :, 1] * 0.587 + center[:, :, 2] * 0.114
+    lum_n = n[:, :, 0] * 0.299 + n[:, :, 1] * 0.587 + n[:, :, 2] * 0.114
+    lum_s = s[:, :, 0] * 0.299 + s[:, :, 1] * 0.587 + s[:, :, 2] * 0.114
+    lum_w = w[:, :, 0] * 0.299 + w[:, :, 1] * 0.587 + w[:, :, 2] * 0.114
+    lum_e = e[:, :, 0] * 0.299 + e[:, :, 1] * 0.587 + e[:, :, 2] * 0.114
+
+    lum_min = np.minimum.reduce([lum, lum_n, lum_s, lum_w, lum_e])
+    lum_max = np.maximum.reduce([lum, lum_n, lum_s, lum_w, lum_e])
+    mask = (lum_max - lum_min) >= threshold
+
+    avg = (n + s + w + e) * 0.25
+    out = center.copy()
+    if mask.any():
+        mask3 = mask[:, :, None]
+        out = np.where(mask3, center * (1.0 - blend) + avg * blend, center)
+
+    pixels[:, :, :] = out
+    image.pixels.foreach_set(pixels.ravel())
     image.update()
